@@ -1,0 +1,22 @@
+import Image from "next/image";
+import Header from "./components/header/Page"
+import Footer from "./components/footer/Page"
+import center from "../public/image/edif.jpeg"
+
+export default function Home() {
+  return (
+    <div>
+      <Header />
+      <div>
+        <Image
+          className="imacentral"
+          src={center.src}
+          alt="center"
+          height={600}
+          width={1700}
+        />
+      </div>
+      <Footer />
+    </div>
+  );
+}

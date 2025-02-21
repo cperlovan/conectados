@@ -1,0 +1,386 @@
+/* header-top */
+.header-top {
+    background-color: #0549a3;
+    display: flex;
+    height: 50px;
+    z-index: 3;
+    position: relative;
+  }
+  
+  .header-top.blue {
+    background-color: #1d448e;
+    color: #ffff;
+  }
+  .header-top .header-menu {
+    display: flex;
+    height: 100%;
+    margin: 0 auto;
+    min-height: 50px;
+    max-width: 1352px;
+    max-height: 50px;
+    padding: 0 2rem;
+    width: 100%;
+  }
+  
+  .header-top .header-menu .dropdown {
+    margin-left: auto;
+  }
+  
+  .header-top .header-menu .dropbtn {
+    align-items: center;
+    display: flex;
+    min-height: 50px;
+    max-height: 50px;
+  }
+  
+  .header-top .header-menu .dropbtn .item > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
+  
+  .header-top .header-menu ul.dropdown-content.about {
+    right: 0;
+    z-index: 2;
+  }
+  
+  .header-top .header-menu .menu-item {
+    align-items: center;
+    color: #031b4e;
+    display: flex;
+    padding: 10px 20px;
+  }
+  
+  .header-top .header-menu .menu-item.active {
+    border-bottom: 2px solid #2a79ff;
+  }
+  
+  .header-top.blue .header-menu .menu-item.active {
+    border-bottom: 2px solid #ffff;
+  }
+  
+  .header-top.blue .header-menu .menu-item a {
+    color: #fff;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  
+  .header-top .header-menu .menu-item a {
+    color: #fff;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  /* 
+  .header-top .header-menu .menu-item:not(:first-of-type):hover a {
+      text-decoration: underline;
+  } */
+  
+  /* header-top */
+  
+  .header-top .dropdown .arrow {
+    height: 14px;
+    width: 14px !important;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 1px 0 0 8px;
+  }
+  
+  .header-top .dropdown.active .arrow {
+    transform: rotate(180deg);
+  }
+  
+  .header-top p {
+    margin: 0.5rem 0;
+    line-height: 1.6;
+    color: rgba(3, 27, 78, 0.7);
+  }
+  
+  .header-top .row,
+  .header-top .row .right.item,
+  .header-top .dropdown.access,
+  .options-login,
+  .header-top .options-main .items,
+  .header-top .dropdown,
+  .header-top .dropdown.access .login,
+  .header-top .btn-menu,
+  .header-top .dropdown.access .dropbtn,
+  .header-top .dropbtn .img-profile,
+  .back-menu .enrollment > .content,
+  .back-menu .enrollment > .content a,
+  .header-top .options-main .item.main.courses,
+  .header-top .right.item,
+  .header-top .dropdown.my-courses .img-ccard,
+  .header-top .dropdown.my-courses .add-courses {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+  }
+  
+  .header-top .row {
+    overflow: hidden;
+  }
+  
+  .header-top .row .column {
+    flex: 1;
+  }
+  
+  .header-top .right.item {
+    height: 60px;
+    margin-left: auto;
+  }
+  
+  .header-top .right.item.access > .dropdown:nth-last-child(3) {
+    margin-right: 12px;
+  }
+  
+  .header-top .right.item .dropdown.access img {
+    width: 30px;
+    height: 30px;
+    border-radius: 100%;
+    margin: auto;
+  }
+  
+  .header-top .right.item .dropdown.access .row img {
+    width: 50px;
+    height: 50px;
+    margin: 0;
+  }
+  
+  .header-top .dropdown {
+    position: relative;
+    height: 100%;
+    min-height: 60px;
+    cursor: pointer;
+  }
+  
+  .header-top .dropbtn {
+    cursor: pointer;
+  }
+  
+  .header-top .dropdown.hide-courses,
+  .header-top .dropdown.show-login {
+    display: none;
+  }
+  
+  .header-top .dropdown.show-login.my-courses {
+    display: block;
+  }
+  
+  .header-top .dropdown.access .dropbtn {
+    margin: auto;
+  }
+  
+  .header-top .dropdown-content {
+    display: none;
+    position: absolute;
+    min-width: 160px;
+    z-index: 1;
+  }
+  
+  .header-top .dropdown-content a {
+    color: #031b4e;
+  }
+  
+  .header-top .right.item.access .dropdown-content a {
+    display: inline-block;
+  }
+  
+  .header-top .dropdown-section {
+    margin: 0 auto;
+    max-width: 980px;
+    padding: 20px 40px 40px;
+  }
+  
+  .header-top .dropdown.my-courses .dropdown-section {
+    padding: 10px;
+  }
+  
+  .header-top .dropdown-section.about {
+    padding: 20px;
+    line-height: 1.6;
+  }
+  
+  .menu-mobile ul,
+  .header-top .dropdown-section ul {
+    list-style: none;
+    padding-left: 0;
+  }
+  
+  .header-top .dropdown-section.courses > .row > .column:first-of-type,
+  .header-top .dropdown-section.about > .row > .column:first-of-type {
+    margin-right: 50px;
+  }
+  
+  .header-top .dropdown-section.courses > .row > .column:last-of-type,
+  .header-top .dropdown-section.about > .row > .column:last-of-type {
+    flex: 0 0 40%;
+  }
+  
+  .header-top .categories > .row > .column:first-of-type {
+    margin-right: 30px;
+  }
+  
+  .header-top a:hover.solicitud {
+    color: #2979ff;
+  }
+  
+  .header-top .dropdown-content h3 {
+    margin: 4px 0 0 12px;
+    font-weight: 600;
+    font-size: 18px;
+  }
+  
+  .header-top .dropdown-content .name h4 {
+    margin: 4px 0 0 12px;
+    color: rgba(3, 27, 78, 0.6);
+  }
+  
+  .header-top .dropdown.active .dropdown-content {
+    display: block;
+  }
+  
+  .header-top .dropdown:hover .menu-content {
+    display: none;
+  }
+  
+  .header-top ul.dropdown-content {
+    right: 0;
+    margin-top: 40px !important;
+    padding-top: 10px;
+    list-style: none;
+    min-width: 300px;
+    width: max-content;
+    width: -moz-max-content;
+    padding-left: 0;
+  }
+  
+  .header-top .dropdown-content .dropdown-container {
+    overflow-y: auto;
+    background-color: #fff;
+    border-radius: 3px;
+    max-height: calc(100vh - 126px);
+    -webkit-box-shadow: 0px 3px 12px 1px rgba(0, 0, 0, 0.12);
+    -moz-box-shadow: 0px 3px 12px 1px rgba(0, 0, 0, 0.12);
+    box-shadow: 0px 3px 12px 1px rgba(0, 0, 0, 0.12);
+  }
+  
+  .header-top .dropdown-content.fullscreen .dropdown-container,
+  .header-top .dropdown.menu-mobile.active .dropdown-content .dropdown-container {
+    border-radius: 0;
+    -webkit-box-shadow: none;
+    -moz-box-shadow: none;
+    box-shadow: none;
+  }
+  
+  /* .header-top ul.dropdown-content.fullscreen {
+      margin-top: 51px;
+      padding-top: 10px;
+      min-width: max-content;
+      max-width: none;
+      width: 100vw;
+      position: absolute;
+  } */
+  
+  .header-top ul.dropdown-content.fullscreen.about {
+    left: calc(100% - 1005px);
+  }
+  
+  .header-top ul.dropdown-content.about {
+    right: auto;
+    max-width: 420px;
+  }
+  
+  .header-top ul.dropdown-content.about li {
+    margin-bottom: 16px;
+  }
+  
+  .header-top ul.dropdown-content.about li:last-of-type {
+    margin-bottom: 0;
+  }
+  
+  .header-top ul.dropdown-content.about li a {
+    width: -webkit-fill-available;
+    color: #2979ff;
+  }
+  
+  .header-top ul.dropdown-content.about li div {
+    color: rgba(3, 27, 78, 0.6);
+  }
+  
+  .header-top ul.dropdown-content.about .dropdown-container {
+    padding: 10px 0;
+  }
+  
+  .header-top .dropdown.access ul.dropdown-content li:first-of-type {
+    border-bottom: 1px solid rgba(3, 27, 78, 0.2);
+    margin-bottom: 16px;
+  }
+  
+  .header-top .dropdown.access ul.dropdown-content li:last-of-type {
+    margin-bottom: 16px;
+  }
+  
+  .header-top .dropdown.access .access-content a {
+    padding: 16px 20px;
+    width: -webkit-fill-available;
+  }
+  
+  .header-top .dropdown.access .access-content a:hover,
+  .header-top .dropdown.access .access-content li:hover:first-child {
+    background-color: rgba(3, 27, 78, 0.04);
+    transition: background-color 0.2s linear;
+    -webkit-transition: background-color 0.2s linear;
+    -moz-transition: background-color 0.2s linear;
+    -o-transition: background-color 0.2s linear;
+  }
+  
+  @media screen and (max-width: 937px) {
+    .header-top .header-menu .dropdown {
+      display: none;
+    }
+  }
+  
+  @media screen and (max-width: 520px) {
+    .header-top .header-menu {
+      padding: 0;
+    }
+  
+    .header-top .header-menu .menu-item {
+      padding: 10px;
+    }
+  }
+
+
+
+  .logo {
+  
+    width: 100%;
+  }
+
+  .tope {
+    background-color: #0549a3;
+    height: 10PX;
+  }
+  
+  .imagenes {
+    display: flex;
+    justify-content: space-between;
+    margin-left: 1%;
+    margin-right: 10%;
+     ;
+
+  }
+  
+  .user {
+    margin-top: 1%;
+    width: 60px;
+    height: 60px;
+    
+    background-image: url('../image/usuario.png');
+    background-size: cover;
+    border-radius: 50%;
+  }
+
+ 
