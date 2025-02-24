@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import React from "react";
 import Register from "./register";
 
 export default function Login() {
@@ -29,7 +30,7 @@ export default function Login() {
 
             const data = await response.json();
 
-            //  Verificar si el usuario está autorizado
+            // Verificar si el usuario está autorizado
             if (!data.user.authorized) {
                 setError("Tu cuenta está bloqueada. Contacta al administrador.");
                 return;
