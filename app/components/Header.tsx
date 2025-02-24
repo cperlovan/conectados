@@ -81,7 +81,7 @@ export default function Header() {
             {dropdownOpen.propietarios && (
               <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
                 {userRole === 'admin' && (
-                  <Link href="/#" className="block px-4 py-2 hover:bg-gray-200">Registro</Link>
+                  <Link href="/propietario" className="block px-4 py-2 hover:bg-gray-200">Registro</Link>
                 )}
                 <Link href="/#" className="block px-4 py-2 hover:bg-gray-200">Recibo</Link>
 
@@ -219,7 +219,7 @@ export default function Header() {
             )}
           </div>
 
-          <button className="hover:text-gray-300">Cerrar sesión</button>
+          <button onClick={handleLogout} className="hover:text-gray-300">Cerrar sesión</button>
         </nav>
 
         {/* Mobile Menu Button */}
@@ -228,7 +228,7 @@ export default function Header() {
         </button>
       </div>
 
-      <button onClick={handleLogout} className="block px-4 py-2 text-left w-full hover:bg-gray-200">Cerrar sesión</button>
+      {/* <button onClick={handleLogout} className="block px-4 py-2 text-left w-full hover:bg-gray-200">Cerrar sesión</button> */}
            
       {/* Mobile Menu */}
       {isOpen && (
@@ -248,7 +248,7 @@ export default function Header() {
                 {userRole === 'admin' && (
                   <Link href="/admin" className="block px-4 py-2 hover:bg-gray-200">Admin</Link>
                 )}
-                <button onClick={handleLogout} className="block px-4 py-2 text-left w-full hover:bg-gray-200">Cerrar sesión</button>
+                <button onClick={handleLogout} className="hover:text-gray-300">Cerrar sesión</button>
               </div>
             )}
           </div>

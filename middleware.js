@@ -35,7 +35,7 @@ export async function middleware(req) {
             return NextResponse.redirect(new URL('/unauthorized', req.url));
         }
 
-        const adminRoutes = ['/home', '/', '/proveedor'];
+        const adminRoutes = ['/home', '/', '/proveedor', '/propietario'];
         const userRoutes = ['/home', '/'];
 
         const requestedPath = req.nextUrl.pathname;
@@ -62,5 +62,5 @@ export async function middleware(req) {
 }
 
 export const config = {
-    matcher: ['/', '/home', '/proveedor'],
+    matcher: ['/', '/home', '/proveedor', '/propietario'],
 };
