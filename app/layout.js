@@ -1,6 +1,8 @@
-import Script from 'next/script';
+//import Script from 'next/script';
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import React from 'react';
+import PropTypes from 'prop-types';
 
 
 
@@ -20,7 +22,9 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-
+  RootLayout.propTypes = {
+    children: PropTypes.node.isRequired,
+  };
 
   return (
     <html lang="en">
@@ -28,13 +32,14 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-      <Script src="https://unpkg.com/flowbite@latest/dist/flowbite.js" strategy="afterInteractive" />
+      {/* <Script src="https://unpkg.com/flowbite@latest/dist/flowbite.js" strategy="afterInteractive" /> */}
 
         {children}
-
+        
         
         
       </body>
+      
     </html>
   );
 }
