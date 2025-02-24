@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Header from "./components/header/Page"
-import Footer from "./components/footer/Page"
+import Header from "./components/Header"
+import Footer from "./components/Footer"
 import center from "../public/image/edif.jpeg"
 
 export default function Home() {

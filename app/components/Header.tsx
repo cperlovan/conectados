@@ -1,19 +1,59 @@
 "use client";
 
-import { useEffect } from 'react';
-
+import { useEffect, useState } from 'react'; 
+import { useRouter } from 'next/navigation';
+import { jwtDecode } from 'jwt-decode';
+import Cookies from 'js-cookie'; // Usa una librería para manejar cookies fácilmente
 import React from 'react'
 
+//import "../app/globals.css";
 
 import Image from 'next/image'
-import "../../../public/assets/style.css"
-import logo from "../../../public/image/CondominiumBlanco.png"
+import "../../public/assets/style.css"
+import logo from "../../public/image/CondominiumBlanco.png"
 import { initFlowbite } from 'flowbite';
+
+
+interface decodedToken {
+    userId: number,
+    role: string,
+    authorized: boolean,
+    iat: number,
+    exp: number
+}
+
+
+
+
 
 
 
 
 export default function Page() {
+    const router = useRouter(); // Inicialización dentro del componente
+
+    const handleLogout = () => {
+        Cookies.remove('token'); // Elimina la cookie
+        router.push('/login');
+    };
+    const [userRole, setUserRole] = useState<string | null>(null); // Estado para el rol del usuario
+
+    useEffect(() => {
+        const token = Cookies.get('token'); // Accede al token desde las cookies
+        if (token) {
+            try {
+                const decoded: decodedToken = jwtDecode(token);
+                setUserRole(decoded.role);
+            } catch (error) {
+                console.error("Error al decodificar el token:", error);
+                setUserRole(null);
+            }
+        } else {
+            setUserRole(null);
+        }
+    }, []);
+
+
         useEffect(() => {
           initFlowbite(); // Inicializa Flowbite
         }, []);
@@ -60,6 +100,7 @@ export default function Page() {
                             <li>
                                 <a href="#" className="block py-2 px-3 text-white bg-blue-700 rounded md:bg-transparent md:text-blue-700 md:p-0 md:dark:text-blue-500 dark:bg-blue-600 md:dark:bg-transparent" aria-current="page">Inicio</a>
                             </li>
+                            {userRole === 'admin' && (
                             <li>
                                 <button id="dropdownNavbarLink" data-dropdown-toggle="dropdownNavbar" className="flex items-center justify-between w-full py-2 px-3 text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Proveedores <svg className="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
                                     <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 4 4 4-4" />
@@ -68,7 +109,7 @@ export default function Page() {
                                 <div id="dropdownNavbar" className="z-10 hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700 dark:divide-gray-600">
                                     <ul className="py-2 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="dropdownLargeButton">
                                         <li>
-                                            <a href="#" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Registro</a>
+                                            <a href="/proveedor" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Registro</a>
                                         </li>
                                         <li>
                                             <a href="#" className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Cotizaciones</a>
@@ -94,6 +135,7 @@ export default function Page() {
                                     </div> */}
                                 </div>
                             </li>
+                            )}
                             <li>
                                 <button id="dropdownNavbarLink1" data-dropdown-toggle="dropdownNavbar1" className="flex items-center justify-between w-full py-2 px-3 text-gray-900 hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Servicios Públicos <svg className="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
                                     <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 1 4 4 4-4" />
@@ -210,7 +252,7 @@ export default function Page() {
                                 <a href="#" className="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Reportes</a>
                             </li>
                             <li>
-                                <a href="#" className="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Tablero</a>
+                            <button  className="text-black hover:underline" onClick={handleLogout}>Logout</button>
                             </li>
                         </ul>
                     </div>

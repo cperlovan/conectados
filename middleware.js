@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken'; 
-import { jwtVerify } from 'jose';
+import { jwtVerify, errors } from 'jose';
+import { JWTExpired } from 'jose/errors';
 /**
  * @param {import('next/server').NextRequest} request
  */
@@ -33,7 +34,7 @@ export async function middleware(req) {
     }
 
     // Definir rutas permitidas
-    const adminRoutes = ['/home', '/'];
+    const adminRoutes = ['/home', '/', '/proveedor'];
     const userRoutes = ['/home', '/'];
 
     const requestedPath = req.nextUrl.pathname;
@@ -50,6 +51,10 @@ export async function middleware(req) {
 
     }
   } catch (error) {
+    if (error instanceof JWTExpired) {
+      console.log("❌ Token expirado, redirigiendo a /login");
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
     console.error("❌ Error al verificar el token:", error);
     return NextResponse.redirect(new URL('/login', req.url));
   }
@@ -58,5 +63,5 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ['/','/home' ],
+  matcher: ['/','/home', '/proveedor' ],
 };

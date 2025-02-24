@@ -1,7 +1,7 @@
 "use client"
 import React from 'react'
-import "../../../public/assets/style.css"
-import logo from "../../../public/image/CondominiumBlanco.png"
+import "../../public/assets/style.css"
+//import logo from "../../public/image/CondominiumBlanco.png"
 
 export default function Page() {
     return (
