@@ -1,7 +1,12 @@
 
 "use client";
 import { useState } from "react";
+import PropTypes from 'prop-types'
+import React from 'react';
 
+interface RegisterProps {
+  setShowRegister: (value: boolean) => void;
+}
 
 export default function Register({ setShowRegister }) {
   const [username, setUsername] = useState("");
@@ -9,6 +14,7 @@ export default function Register({ setShowRegister }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("user"); // Selector de rol
   const [error, setError] = useState("");
+  
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -84,13 +90,15 @@ export default function Register({ setShowRegister }) {
       </form>
       <p className="text-sm text-center mt-4">
         Do you already have an account?{" "}
-        <button
+        {/* <button
           onClick={() => setShowRegister(false)}
           className="text-blue-500 hover:underline"
-        >
+        > */}
+          <button onClick={() => setShowRegister(false)} className="text-blue-500 hover:underline">Close Register</button>
           Login here
-        </button>
       </p>
     </div>
   );
+
+  
 }
