@@ -1,20 +1,17 @@
-
 "use client";
 import { useState } from "react";
-import PropTypes from 'prop-types'
 import React from 'react';
 
 interface RegisterProps {
   setShowRegister: (value: boolean) => void;
 }
 
-export default function Register({ setShowRegister }) {
+export default function Register({ setShowRegister }: RegisterProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("user"); // Selector de rol
+  const [role, setRole] = useState("user");
   const [error, setError] = useState("");
-  
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -39,7 +36,6 @@ export default function Register({ setShowRegister }) {
 
       alert("Registro exitoso. Ahora puedes iniciar sesión.");
       setShowRegister(false);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       setError("Error al registrarse");
     }
@@ -73,7 +69,6 @@ export default function Register({ setShowRegister }) {
           className="border border-gray-300 p-2 rounded"
         />
 
-        {/* Selector de Role */}
         <label className="text-sm">Select your role:</label>
         <select
           value={role}
@@ -90,15 +85,9 @@ export default function Register({ setShowRegister }) {
       </form>
       <p className="text-sm text-center mt-4">
         Do you already have an account?{" "}
-        {/* <button
-          onClick={() => setShowRegister(false)}
-          className="text-blue-500 hover:underline"
-        > */}
-          <button onClick={() => setShowRegister(false)} className="text-blue-500 hover:underline">Close Register</button>
-          Login here
+        <button onClick={() => setShowRegister(false)} className="text-blue-500 hover:underline">Close Register</button>
+        Login here
       </p>
     </div>
   );
-
-  
 }
