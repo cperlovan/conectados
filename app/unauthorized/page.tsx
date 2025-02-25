@@ -1,3 +1,5 @@
+import React from "react";
+
 export default function Unauthorized() {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-center bg-gray-200 text-red-900 p-5">
