@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import React from "react";
 
 interface RegisterProps {
   setShowRegister: (show: boolean) => void;
