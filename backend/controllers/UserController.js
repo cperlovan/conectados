@@ -260,6 +260,53 @@ const userController = {
             res.status(500).json({ message: 'Error al actualizar el usuario' });
         }
     },
+
+    /**
+     * Obtener usuarios por rol y condominio
+     */
+    getUsersByRoleAndCondominium: async (req, res) => {
+        try {
+            const { role, condominiumId } = req.query;
+            
+            if (!role || !condominiumId) {
+                return res.status(400).json({ message: 'Se requiere rol y condominiumId' });
+            }
+            
+            const users = await User.findAll({
+                where: { 
+                    role,
+                    condominiumId 
+                },
+                attributes: ['id', 'name', 'email', 'status', 'createdAt', 'updatedAt', 'condominiumId', 'role'],
+                order: [['createdAt', 'DESC']]
+            });
+            
+            res.json(users);
+        } catch (error) {
+            console.error('Error al obtener usuarios por rol y condominio:', error);
+            res.status(500).json({ message: 'Error al obtener usuarios', error: error.message });
+        }
+    },
+
+    // Obtener usuario por ID
+    getUserById: async (req, res) => {
+        try {
+            const { id } = req.params;
+            
+            const user = await User.findByPk(id, {
+                attributes: ['id', 'name', 'email', 'status', 'createdAt', 'updatedAt', 'condominiumId', 'role']
+            });
+            
+            if (!user) {
+                return res.status(404).json({ message: 'Usuario no encontrado' });
+            }
+            
+            res.json(user);
+        } catch (error) {
+            console.error('Error al obtener usuario por ID:', error);
+            res.status(500).json({ message: 'Error al obtener usuario', error: error.message });
+        }
+    },
 };
 
 module.exports = userController; 

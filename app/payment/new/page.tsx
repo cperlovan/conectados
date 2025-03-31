@@ -239,8 +239,16 @@ export default function NewPayment() {
                       <p className="mb-1"><span className="font-medium">Recibo:</span> #{receipt.id}</p>
                       <p className="mb-1"><span className="font-medium">Período:</span> {receipt.month} {receipt.year}</p>
                       <p className="mb-1">
-                        <span className="font-medium">Propiedad:</span> {receipt.property?.name || "N/A"}
-                        {receipt.property?.number && ` - N° ${receipt.property.number}`}
+                        <span className="font-medium">Propiedad:</span> 
+                        {receipt.property ? (
+                          <>
+                            {receipt.property.type && 
+                             `${receipt.property.type.charAt(0).toUpperCase() + receipt.property.type.slice(1)}`}
+                            {receipt.property.number && ` ${receipt.property.number}`}
+                            {receipt.property.block && ` - Bloque ${receipt.property.block}`}
+                            {receipt.property.floor && ` - Piso ${receipt.property.floor}`}
+                          </>
+                        ) : 'N/A'}
                       </p>
                       <p className="font-medium text-blue-800 mt-2">Monto a pagar: {formatCurrency(receipt.amount)}</p>
                     </div>

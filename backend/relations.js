@@ -10,6 +10,7 @@ const ReserveFund = require('./models/ReserveFund');
 const Expense = require('./models/Expense');
 const SupplierEconomicActivity = require('./models/SupplierEconomicActivity');
 const ReserveFundContribution = require('./models/ReserveFundContribution');
+const ReserveFundWithdrawal = require('./models/ReserveFundWithdrawal');
 const Budget = require('./models/Budget');
 const Invoice = require('./models/Invoice');
 const Owner = require('./models/Owner');
@@ -83,6 +84,13 @@ Supplier.belongsTo(User, { foreignKey: 'userId' });
 ReserveFund.hasMany(ReserveFundContribution, { foreignKey: 'reserveFundId' });
 ReserveFundContribution.belongsTo(ReserveFund, { foreignKey: 'reserveFundId' });
 
+// Relación entre ReserveFund and ReserveFundWithdrawal
+ReserveFund.hasMany(ReserveFundWithdrawal, { foreignKey: 'reserveFundId', as: 'withdrawals' });
+ReserveFundWithdrawal.belongsTo(ReserveFund, { foreignKey: 'reserveFundId', as: 'reserveFund' });
+
+// Relación entre Condominium and ReserveFundWithdrawal
+Condominium.hasMany(ReserveFundWithdrawal, { foreignKey: 'condominiumId', as: 'fundWithdrawals' });
+ReserveFundWithdrawal.belongsTo(Condominium, { foreignKey: 'condominiumId', as: 'condominium' });
 
 // backend/relations.js
 // ... existing code ...
@@ -140,9 +148,16 @@ Property.belongsTo(Owner, { foreignKey: 'ownerId', as: 'owner' });
 Property.belongsTo(Condominium, { foreignKey: 'condominiumId', as: 'condominium' });
 Condominium.hasMany(Property, { foreignKey: 'condominiumId', as: 'properties' });
 
-// Relación entre Receipt y Property
-Receipt.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
-Property.hasMany(Receipt, { foreignKey: 'propertyId', as: 'receipts' });
+// Relación entre Receipt y Property (opcional)
+Receipt.belongsTo(Property, { 
+  foreignKey: 'propertyId', 
+  as: 'property',
+  required: false // Relación opcional para poder tener recibos sin propiedad
+});
+Property.hasMany(Receipt, { 
+  foreignKey: 'propertyId', 
+  as: 'receipts'
+});
 
 module.exports = {
   User,
@@ -155,6 +170,7 @@ module.exports = {
   BankAccount,
   ReserveFund,
   ReserveFundContribution,
+  ReserveFundWithdrawal,
   Budget,
   Invoice,
   Owner,

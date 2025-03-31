@@ -5,6 +5,9 @@ const receiptController = require('../controllers/ReceiptController');
 // Crear un nuevo recibo
 router.post('/', receiptController.createReceipt);
 
+// Cambiar la visibilidad de uno o varios recibos
+router.put('/visibility', receiptController.toggleVisibility);
+
 // Obtener todos los recibos de un usuario específico
 router.get('/user/:userId', receiptController.getReceiptsByUser);
 

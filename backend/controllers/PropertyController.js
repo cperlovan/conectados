@@ -94,6 +94,22 @@ const createProperty = async (req, res) => {
         message: 'Ya existe una propiedad con ese número en este condominio' 
       });
     }
+    
+    // Verificar que el propietario (Owner) existe y pertenece al mismo condominio
+    const owner = await Owner.findOne({
+      where: {
+        id: propertyData.ownerId,
+        condominiumId: propertyData.condominiumId
+      }
+    });
+    
+    if (!owner) {
+      return res.status(400).json({ 
+        message: 'El propietario seleccionado no existe o no pertenece al mismo condominio' 
+      });
+    }
+    
+    console.log(`Creando propiedad con Owner ID: ${propertyData.ownerId}, condominio ID: ${propertyData.condominiumId}`);
 
     const property = await Property.create(propertyData);
     
@@ -203,6 +219,63 @@ const searchProperties = async (req, res) => {
   }
 };
 
+/**
+ * Actualiza las alícuotas de múltiples propiedades en lote
+ */
+const updateQuotasBatch = async (req, res) => {
+  try {
+    const { properties, condominiumId } = req.body;
+
+    if (!properties || !Array.isArray(properties) || properties.length === 0) {
+      return res.status(400).json({ message: 'La lista de propiedades es requerida y debe ser un array no vacío' });
+    }
+
+    if (!condominiumId) {
+      return res.status(400).json({ message: 'El ID del condominio es requerido' });
+    }
+
+    // Verificar que el usuario tenga acceso al condominio
+    if (req.user.role !== 'superadmin' && req.user.condominiumId !== condominiumId) {
+      return res.status(403).json({ message: 'No tienes permiso para actualizar propiedades de este condominio' });
+    }
+
+    const updatePromises = properties.map(async (prop) => {
+      if (!prop.id) {
+        return null;
+      }
+
+      // Buscar la propiedad para asegurarse de que existe y pertenece al condominio especificado
+      const property = await Property.findOne({ 
+        where: { 
+          id: prop.id,
+          condominiumId 
+        }
+      });
+
+      if (!property) {
+        return null;
+      }
+
+      // Actualizar tanto el campo participationQuota como el campo aliquot para mantener consistencia
+      return property.update({ 
+        participationQuota: prop.participationQuota,
+        aliquot: prop.participationQuota // Actualizar también el campo aliquot para mantener consistencia
+      });
+    });
+
+    const results = await Promise.all(updatePromises);
+    const updatedProperties = results.filter(result => result !== null);
+
+    return res.status(200).json({
+      message: `${updatedProperties.length} propiedades actualizadas correctamente`,
+      updatedCount: updatedProperties.length
+    });
+  } catch (error) {
+    console.error('Error al actualizar alícuotas en lote:', error);
+    return res.status(500).json({ message: 'Error al actualizar alícuotas en lote', error: error.message });
+  }
+};
+
 module.exports = {
   getPropertiesByCondominium,
   getPropertiesByOwner,
@@ -210,5 +283,6 @@ module.exports = {
   createProperty,
   updateProperty,
   deleteProperty,
-  searchProperties
+  searchProperties,
+  updateQuotasBatch
 };

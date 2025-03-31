@@ -6,7 +6,7 @@ import { useToken } from "../../hook/useToken";
 import Header from "../../components/Header";
 import Link from "next/link";
 import { FiFileText, FiAlertCircle, FiCheckCircle, FiCalendar, FiDollarSign, FiFilter, FiDownload, FiHome, FiPlus } from "react-icons/fi";
-import { getOwnerByUserId, getReceiptsByOwnerId, Receipt } from "../../utils/api";
+import { getOwnerByUserId, getReceiptsByUserId, Receipt } from "../../utils/api";
 
 export default function OwnerReceipts() {
   const router = useRouter();
@@ -20,7 +20,13 @@ export default function OwnerReceipts() {
     year: "all",
     property: "all"
   });
-  const [properties, setProperties] = useState<{id: number, name: string}[]>([]);
+  const [properties, setProperties] = useState<{
+    id: number, 
+    type?: string,
+    number?: string,
+    block?: string,
+    floor?: string
+  }[]>([]);
   const [years, setYears] = useState<string[]>([]);
 
   useEffect(() => {
@@ -43,8 +49,8 @@ export default function OwnerReceipts() {
         const ownerData = await getOwnerByUserId(userInfo.id, token);
         
         console.log("Obteniendo recibos del propietario...");
-        // Luego obtener los recibos del propietario usando la función de API
-        const receiptsData = await getReceiptsByOwnerId(ownerData.id, token);
+        // Usar el ID del usuario directamente, ya que el endpoint espera un user ID, no un owner ID
+        const receiptsData = await getReceiptsByUserId(userInfo.id, token);
         setReceipts(receiptsData);
         setFilteredReceipts(receiptsData);
         
@@ -55,7 +61,10 @@ export default function OwnerReceipts() {
           const receipt = receiptsData.find((r: Receipt) => r.propertyId === propId);
           return {
             id: propId as number,
-            name: receipt && receipt.property && receipt.property.name ? receipt.property.name : 'Desconocido'
+            type: receipt?.property?.type,
+            number: receipt?.property?.number || undefined,
+            block: receipt?.property?.block || undefined,
+            floor: receipt?.property?.floor || undefined
           };
         });
         
@@ -83,11 +92,11 @@ export default function OwnerReceipts() {
       let result = [...receipts];
       
       if (filters.status !== "all") {
-        result = result.filter(receipt => receipt.status.toLowerCase() === filters.status);
+        result = result.filter(receipt => receipt.status?.toLowerCase() === filters.status);
       }
       
       if (filters.year !== "all") {
-        result = result.filter(receipt => receipt.year.toString() === filters.year);
+        result = result.filter(receipt => receipt.year && receipt.year.toString() === filters.year);
       }
       
       if (filters.property !== "all") {
@@ -105,7 +114,16 @@ export default function OwnerReceipts() {
     }));
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
+    if (!status) {
+      return (
+        <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs flex items-center">
+          <FiAlertCircle className="mr-1" />
+          Pendiente
+        </span>
+      );
+    }
+    
     switch (status.toLowerCase()) {
       case 'paid':
       case 'pagado':
@@ -140,10 +158,10 @@ export default function OwnerReceipts() {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "Fecha no disponible";
+    
     try {
-      if (!dateString) return "Fecha no disponible";
-      
       const date = new Date(dateString);
       // Verificar si la fecha es válida
       if (isNaN(date.getTime())) {
@@ -250,7 +268,9 @@ export default function OwnerReceipts() {
                   <option key="property-all" value="all">Todas</option>
                   {properties.map(property => (
                     <option key={property.id} value={property.id}>
-                      {property.name}
+                      {property.type && property.type.charAt(0).toUpperCase() + property.type.slice(1)}
+                      {property.number && ` ${property.number}`}
+                      {property.block && ` - Bloque ${property.block}`}
                     </option>
                   ))}
                 </select>
@@ -304,11 +324,18 @@ export default function OwnerReceipts() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {receipt.property && receipt.property.name ? receipt.property.name : 'Propiedad no especificada'}
+                          {receipt.property ? (
+                            <>
+                              {receipt.property.type && 
+                                `${receipt.property.type.charAt(0).toUpperCase() + receipt.property.type.slice(1)}`}
+                              {receipt.property.number && ` ${receipt.property.number}`}
+                            </>
+                          ) : 'Propiedad no especificada'}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {receipt.property && receipt.property.number && `N° ${receipt.property.number}`}
-                          {receipt.property && receipt.property.block && ` - Bloque ${receipt.property.block}`}
+                          {receipt.property && receipt.property.block && `Bloque ${receipt.property.block}`}
+                          {receipt.property && receipt.property.floor && receipt.property.block && ` - `}
+                          {receipt.property && receipt.property.floor && `Piso ${receipt.property.floor}`}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -350,7 +377,7 @@ export default function OwnerReceipts() {
                           >
                             <FiDownload size={14} />
                           </button>
-                          {(receipt.status.toLowerCase() === 'pending' || receipt.status.toLowerCase() === 'pendiente') && (
+                          {(receipt.status?.toLowerCase() === 'pending' || receipt.status?.toLowerCase() === 'pendiente') && (
                             <Link
                               href={`/payment/new?receiptId=${receipt.id}`}
                               className="text-indigo-600 hover:text-indigo-900"

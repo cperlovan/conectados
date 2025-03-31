@@ -1,14 +1,49 @@
 const ReserveFund = require('../models/ReserveFund');
+const ReserveFundContribution = require('../models/ReserveFundContribution');
+const sequelize = require('../config/database');
 
 // Crear un nuevo fondo de reserva
 exports.createReserveFund = async (req, res) => {
   const { amount, description, condominiumId } = req.body;
+  
+  // Iniciar transacción
+  const transaction = await sequelize.transaction();
 
   try {
-    const fund = await ReserveFund.create({ amount, description, condominiumId });
-    res.status(201).json({ message: 'Fondo de reserva creado exitosamente.', fund });
+    // 1. Crear el fondo con monto inicial 0
+    const fund = await ReserveFund.create({ 
+      amount: 0, 
+      description, 
+      condominiumId 
+    }, { transaction });
+
+    // 2. Crear una contribución inicial con el monto especificado
+    const today = new Date().toISOString().split('T')[0];
+    const initialContribution = await ReserveFundContribution.create({
+      amount,
+      date: today,
+      description: "Monto inicial del fondo de reserva",
+      observations: "Contribución automática generada al crear el fondo",
+      reserveFundId: fund.id,
+      condominiumId
+    }, { transaction });
+
+    // 3. Actualizar el saldo del fondo con el monto inicial
+    await fund.update({ amount }, { transaction });
+
+    // Confirmar la transacción
+    await transaction.commit();
+
+    res.status(201).json({ 
+      message: 'Fondo de reserva creado exitosamente con contribución inicial.', 
+      fund,
+      initialContribution
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al crear el fondo de reserva.', error });
+    // Revertir la transacción en caso de error
+    await transaction.rollback();
+    console.error('Error al crear el fondo de reserva:', error);
+    res.status(500).json({ message: 'Error al crear el fondo de reserva.', error: error.message });
   }
 };
 

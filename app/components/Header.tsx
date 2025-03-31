@@ -24,7 +24,10 @@ export default function Header() {
     pagoproveedor: false,
     pagoservpublico: false,
     mobile: false,
-    admin: false
+    admin: false,
+    fondos: false,
+    recibos: false,
+    pagos: false
   });
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -125,7 +128,8 @@ export default function Header() {
                   <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
                     <Link href="/property" className="block px-4 py-2 hover:bg-gray-100">Propiedades</Link>
                     <Link href="/owner/register" className="block px-4 py-2 hover:bg-gray-100">Registrar Propietario</Link>
-                    <Link href="/owner/list" className="block px-4 py-2 hover:bg-gray-100">Listar Propietarios</Link>
+                    <Link href="/owner/list-owners" className="block px-4 py-2 hover:bg-gray-100">Listar Propietarios</Link>
+                    <Link href="/owner/unregistered-owners" className="block px-4 py-2 hover:bg-gray-100 text-yellow-600">Propietarios sin Propiedades</Link>
                     <div className="relative">
                       <button
                         onClick={() => toggleDropdown('pagopropietarios')}
@@ -138,6 +142,8 @@ export default function Header() {
                           <Link href="/receipts" className="block px-4 py-2 hover:bg-gray-100">Recibos</Link>
                           <Link href="/payments" className="block px-4 py-2 hover:bg-gray-100">Pagos</Link>
                           <Link href="/payments/validation" className="block px-4 py-2 hover:bg-gray-100">Validación de Pagos</Link>
+                          <Link href="/admin/payments" className="block px-4 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
+                          <Link href="/receipt/management" className="block px-4 py-2 hover:bg-gray-100 font-medium text-green-600">Gestión de Recibos</Link>
                         </div>
                       )}
                     </div>
@@ -163,6 +169,39 @@ export default function Header() {
                 )}
               </div>
 
+              {/* Dropdown de Pagos y Verificación */}
+              <div className="relative">
+                <button
+                  onClick={() => toggleDropdown('pagos')}
+                  className="flex items-center hover:text-gray-500"
+                >
+                  Pagos <FiChevronDown className="ml-1" />
+                </button>
+                {dropdownOpen.pagos && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
+                    <Link href="/payments" className="block px-4 py-2 hover:bg-gray-100">Listar Pagos</Link>
+                    <Link href="/admin/payments" className="block px-4 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
+                    <Link href="/payments/validation" className="block px-4 py-2 hover:bg-gray-100">Validación de Pagos</Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Nuevo dropdown para Recibos */}
+              <div className="relative">
+                <button
+                  onClick={() => toggleDropdown('recibos')}
+                  className="flex items-center hover:text-gray-500"
+                >
+                  Recibos <FiChevronDown className="ml-1" />
+                </button>
+                {dropdownOpen.recibos && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
+                    <Link href="/receipt/management" className="block px-4 py-2 hover:bg-gray-100 font-medium text-green-600">Gestión de Recibos</Link>
+                    <Link href="/receipt/management/create" className="block px-4 py-2 hover:bg-gray-100">Generar Recibos</Link>
+                  </div>
+                )}
+              </div>
+
               {/* Contabilidad */}
               <div className="relative">
                 <button
@@ -178,6 +217,26 @@ export default function Header() {
                     <Link href="/accounting/bank" className="block px-4 py-2 hover:bg-gray-100">Conciliación Bancaria</Link>
                     <Link href="/accounting/delinquency" className="block px-4 py-2 hover:bg-gray-100">Morosidad</Link>
                     <Link href="/accounting/reports" className="block px-4 py-2 hover:bg-gray-100">Reportes</Link>
+                    <Link href="/expenses" className="block px-4 py-2 hover:bg-gray-100 font-medium text-red-600">Gastos</Link>
+                    <Link href="/reserveFunds" className="block px-4 py-2 hover:bg-gray-100 font-medium text-blue-600">Fondos de Reserva</Link>
+                    <Link href="/receipt/management" className="block px-4 py-2 hover:bg-gray-100 font-medium text-green-600">Gestión de Recibos</Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Fondos de Reserva */}
+              <div className="relative">
+                <button
+                  onClick={() => toggleDropdown('fondos')}
+                  className="flex items-center hover:text-gray-500"
+                >
+                  Fondos de Reserva <FiChevronDown className="ml-1" />
+                </button>
+                {dropdownOpen.fondos && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
+                    <Link href="/reserveFunds" className="block px-4 py-2 hover:bg-gray-100">Todos los Fondos</Link>
+                    <Link href="/reserveFunds/create" className="block px-4 py-2 hover:bg-gray-100">Crear Nuevo Fondo</Link>
+                    <Link href="/expenses" className="block px-4 py-2 hover:bg-gray-100 font-medium text-red-600">Gastos</Link>
                   </div>
                 )}
               </div>
@@ -199,6 +258,25 @@ export default function Header() {
                     <Link href="/condominium" className="block px-4 py-2 hover:bg-gray-100">Condominios</Link>
                     <Link href="/users" className="block px-4 py-2 hover:bg-gray-100">Usuarios</Link>
                     <Link href="/configuration" className="block px-4 py-2 hover:bg-gray-100">Configuración</Link>
+                    <Link href="/expenses" className="block px-4 py-2 hover:bg-gray-100 font-medium text-red-600">Gastos</Link>
+                    <Link href="/reserveFunds" className="block px-4 py-2 hover:bg-gray-100">Fondos de Reserva</Link>
+                    <Link href="/receipt/management" className="block px-4 py-2 hover:bg-gray-100 font-medium text-green-600">Gestión de Recibos</Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Nuevo dropdown para Recibos */}
+              <div className="relative">
+                <button
+                  onClick={() => toggleDropdown('recibos')}
+                  className="flex items-center hover:text-gray-500"
+                >
+                  Recibos <FiChevronDown className="ml-1" />
+                </button>
+                {dropdownOpen.recibos && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
+                    <Link href="/receipt/management" className="block px-4 py-2 hover:bg-gray-100 font-medium text-green-600">Gestión de Recibos</Link>
+                    <Link href="/receipt/management/create" className="block px-4 py-2 hover:bg-gray-100">Generar Recibos</Link>
                   </div>
                 )}
               </div>
@@ -248,18 +326,44 @@ export default function Header() {
               <div className="px-4 py-2 text-gray-500 font-semibold">Propietarios</div>
               <Link href="/property" className="block px-6 py-2 hover:bg-gray-100">Propiedades</Link>
               <Link href="/owner/register" className="block px-6 py-2 hover:bg-gray-100">Registrar Propietario</Link>
-              <Link href="/owner/list" className="block px-6 py-2 hover:bg-gray-100">Listar Propietarios</Link>
-              
-              <div className="px-4 py-2 text-gray-500 font-semibold">Proveedores</div>
+              <Link href="/owner/list-owners" className="block px-6 py-2 hover:bg-gray-100">Listar Propietarios</Link>
+              <Link href="/owner/unregistered-owners" className="block px-6 py-2 hover:bg-gray-100 text-yellow-600">Propietarios sin Propiedades</Link>
+              <Link href="/receipts" className="block px-6 py-2 hover:bg-gray-100">Recibos</Link>
+              <Link href="/payments" className="block px-6 py-2 hover:bg-gray-100">Pagos</Link>
+              <Link href="/payments/validation" className="block px-6 py-2 hover:bg-gray-100">Validación de Pagos</Link>
+
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Proveedores</div>
               <Link href="/supplier" className="block px-6 py-2 hover:bg-gray-100">Listar Proveedores</Link>
               <Link href="/supplier/admin-register" className="block px-6 py-2 hover:bg-gray-100">Registrar Proveedor</Link>
               <Link href="/supplier/budgets" className="block px-6 py-2 hover:bg-gray-100">Presupuestos</Link>
               <Link href="/supplier/invoices" className="block px-6 py-2 hover:bg-gray-100">Facturas</Link>
-              
-              <div className="px-4 py-2 text-gray-500 font-semibold">Contabilidad</div>
+
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Pagos</div>
+              <Link href="/payments" className="block px-6 py-2 hover:bg-gray-100">Listar Pagos</Link>
+              <Link href="/admin/payments" className="block px-6 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
+              <Link href="/payments/validation" className="block px-6 py-2 hover:bg-gray-100">Validación de Pagos</Link>
+
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Contabilidad</div>
               <Link href="/accounting/receivables" className="block px-6 py-2 hover:bg-gray-100">Cuentas por Cobrar</Link>
               <Link href="/accounting/payables" className="block px-6 py-2 hover:bg-gray-100">Cuentas por Pagar</Link>
+              <Link href="/accounting/bank" className="block px-6 py-2 hover:bg-gray-100">Conciliación Bancaria</Link>
+              <Link href="/accounting/delinquency" className="block px-6 py-2 hover:bg-gray-100">Morosidad</Link>
               <Link href="/accounting/reports" className="block px-6 py-2 hover:bg-gray-100">Reportes</Link>
+              <Link href="/expenses" className="block px-6 py-2 hover:bg-gray-100 font-medium text-red-600">Gastos</Link>
+
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Fondos de Reserva</div>
+              <Link href="/reserveFunds" className="block px-6 py-2 hover:bg-gray-100 font-medium text-blue-600">Fondos de Reserva</Link>
+              <Link href="/reserveFunds/create" className="block px-6 py-2 hover:bg-gray-100">Crear Nuevo Fondo</Link>
+
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Recibos</div>
+              <Link href="/receipt/management" className="block px-6 py-2 hover:bg-gray-100 font-medium text-green-600">Gestión de Recibos</Link>
+              <Link href="/receipt/management/create" className="block px-6 py-2 hover:bg-gray-100">Generar Recibos</Link>
+
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Pagos</div>
+              <Link href="/receipts" className="block px-6 py-2 hover:bg-gray-100">Recibos</Link>
+              <Link href="/payments" className="block px-6 py-2 hover:bg-gray-100">Pagos</Link>
+              <Link href="/payments/validation" className="block px-6 py-2 hover:bg-gray-100">Validación de Pagos</Link>
+              <Link href="/admin/payments" className="block px-6 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
             </>
           )}
 
@@ -270,13 +374,26 @@ export default function Header() {
               <Link href="/condominium" className="block px-6 py-2 hover:bg-gray-100">Condominios</Link>
               <Link href="/users" className="block px-6 py-2 hover:bg-gray-100">Usuarios</Link>
               <Link href="/configuration" className="block px-6 py-2 hover:bg-gray-100">Configuración</Link>
+              <Link href="/expenses" className="block px-6 py-2 hover:bg-gray-100 font-medium text-red-600">Gastos</Link>
+              
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Fondos de Reserva</div>
+              <Link href="/reserveFunds" className="block px-6 py-2 hover:bg-gray-100 font-medium text-blue-600">Fondos de Reserva</Link>
+              <Link href="/reserveFunds/create" className="block px-6 py-2 hover:bg-gray-100">Crear Nuevo Fondo</Link>
+
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Recibos</div>
+              <Link href="/receipt/management" className="block px-6 py-2 hover:bg-gray-100 font-medium text-green-600">Gestión de Recibos</Link>
+              <Link href="/receipt/management/create" className="block px-6 py-2 hover:bg-gray-100">Generar Recibos</Link>
+              
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Pagos</div>
+              <Link href="/receipts" className="block px-6 py-2 hover:bg-gray-100">Recibos</Link>
+              <Link href="/payments" className="block px-6 py-2 hover:bg-gray-100">Pagos</Link>
+              <Link href="/payments/validation" className="block px-6 py-2 hover:bg-gray-100">Validación de Pagos</Link>
+              <Link href="/admin/payments" className="block px-6 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
             </>
           )}
-          
+
           <div className="border-t border-gray-200 mt-2 pt-2">
-            <button onClick={handleLogout} className="block w-full text-left px-4 py-2 hover:bg-gray-100">
-              Cerrar sesión
-            </button>
+            <button onClick={handleLogout} className="block w-full text-left px-4 py-2 hover:bg-gray-100">Cerrar sesión</button>
           </div>
         </div>
       )}

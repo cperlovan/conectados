@@ -14,6 +14,8 @@ router.post('/complete-profile', authMiddleware, userController.completeProfile)
 router.get('/condominium/:condominiumId', authMiddleware, userController.getUsersByCondominium);
 router.get('/all', authMiddleware, userController.getAllUsers);
 router.get('/email/:email', authMiddleware, userController.getUserByEmail);
+router.get('/:id', authMiddleware, userController.getUserById);
 router.put('/:id', authMiddleware, userController.updateUser);
+router.get('/', authMiddleware, userController.getUsersByRoleAndCondominium);
 
 module.exports = router;

@@ -6,7 +6,7 @@ import { useToken } from "../hook/useToken";
 import Header from "../components/Header";
 import Link from "next/link";
 import { FiHome, FiFileText, FiCreditCard, FiPieChart, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
-import { getOwnerByUserId, getPropertiesByOwnerId, getReceiptsByOwnerId, getPaymentsByOwnerId } from "../utils/api";
+import { getOwnerByUserId, getPropertiesByOwnerId, getReceiptsByUserId, getPaymentsByUserId } from "../utils/api";
 
 interface StatCardProps {
   title: string;
@@ -68,11 +68,11 @@ export default function OwnerDashboard() {
         setProperties(propertiesData || []);
         
         // Obtener recibos del propietario
-        const receiptsData = await getReceiptsByOwnerId(ownerData.id, token);
+        const receiptsData = await getReceiptsByUserId(userInfo.id, token);
         setReceipts(receiptsData || []);
         
         // Obtener pagos del propietario
-        const paymentsData = await getPaymentsByOwnerId(ownerData.id, token);
+        const paymentsData = await getPaymentsByUserId(userInfo.id, token);
         setPayments(paymentsData || []);
         
       } catch (err) {

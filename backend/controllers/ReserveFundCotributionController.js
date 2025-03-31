@@ -1,17 +1,61 @@
 const ReserveFundContribution = require('../models/ReserveFundContribution');
-const Condominium = require('../models/Condominium'); 
+const Condominium = require('../models/Condominium');
+const ReserveFund = require('../models/ReserveFund');
+const sequelize = require('../config/database');
 
-
-// crear una contribución de fondo de reserva
+// Crear una contribución de fondo de reserva y actualizar el saldo del fondo
 exports.createReserveFundContribution = async (req, res) => {
-  const { amount, description, date, reserveFundId } = req.body;
-  const condominiumId = req.user.condominiumId;
+  const { amount, description, date, reserveFundId, observations } = req.body;
+  const condominiumId = req.user?.condominiumId || req.body.condominiumId;
+
+  // Iniciar transacción
+  const transaction = await sequelize.transaction();
 
   try {
-    const contribution = await ReserveFundContribution.create({ amount, description, date, reserveFundId, condominiumId });
-    res.status(201).json(contribution);
+    // 1. Crear la contribución
+    const contribution = await ReserveFundContribution.create({ 
+      amount, 
+      description, 
+      date, 
+      reserveFundId, 
+      condominiumId,
+      observations
+    }, { transaction });
+
+    // 2. Actualizar el saldo del fondo de reserva
+    const fund = await ReserveFund.findByPk(reserveFundId, { transaction });
+    if (!fund) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Fondo de reserva no encontrado.' });
+    }
+
+    // Incrementar el saldo actual
+    const currentAmount = parseFloat(fund.amount);
+    const contributionAmount = parseFloat(amount);
+    const newAmount = currentAmount + contributionAmount;
+
+    await fund.update({ amount: newAmount.toFixed(2) }, { transaction });
+
+    // Confirmar la transacción
+    await transaction.commit();
+
+    res.status(201).json({
+      message: 'Contribución creada exitosamente',
+      contribution,
+      fund: {
+        id: fund.id,
+        amount: fund.amount,
+        previousAmount: currentAmount.toFixed(2)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al crear la contribución de fondo de reserva.', error });
+    // Revertir la transacción en caso de error
+    await transaction.rollback();
+    console.error('Error al crear la contribución:', error);
+    res.status(500).json({ 
+      message: 'Error al crear la contribución de fondo de reserva.', 
+      error: error.message 
+    });
   }
 };
 
@@ -44,17 +88,66 @@ exports.getReserveFundContributionById = async (req, res) => {
 // actualizar una contribución de fondo de reserva por id
 exports.updateReserveFundContribution = async (req, res) => {
   const { id } = req.params;
-  const { amount, description, date, reserveFundId } = req.body;
+  const { amount, description, date, reserveFundId, observations } = req.body;
+
+  // Iniciar transacción
+  const transaction = await sequelize.transaction();
 
   try {
-    const contribution = await ReserveFundContribution.findByPk(id);
+    // Buscar la contribución
+    const contribution = await ReserveFundContribution.findByPk(id, { transaction });
     if (!contribution) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Contribución de fondo de reserva no encontrada.' });
-    }   
-    await contribution.update({ amount, description, date, reserveFundId });
-    res.status(200).json(contribution);
+    }
+
+    // Obtener el monto actual de la contribución
+    const oldAmount = parseFloat(contribution.amount);
+    const newAmount = parseFloat(amount);
+    const difference = newAmount - oldAmount;
+
+    // Actualizar la contribución
+    await contribution.update({ 
+      amount, 
+      description, 
+      date, 
+      reserveFundId,
+      observations 
+    }, { transaction });
+
+    // Actualizar el saldo del fondo de reserva
+    const fund = await ReserveFund.findByPk(reserveFundId, { transaction });
+    if (!fund) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Fondo de reserva no encontrado.' });
+    }
+
+    // Ajustar el saldo
+    const currentFundAmount = parseFloat(fund.amount);
+    const newFundAmount = currentFundAmount + difference;
+
+    await fund.update({ amount: newFundAmount.toFixed(2) }, { transaction });
+
+    // Confirmar la transacción
+    await transaction.commit();
+
+    res.status(200).json({
+      message: 'Contribución actualizada exitosamente',
+      contribution,
+      fund: {
+        id: fund.id,
+        amount: fund.amount,
+        previousAmount: currentFundAmount.toFixed(2)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al actualizar la contribución de fondo de reserva.', error });
+    // Revertir la transacción en caso de error
+    await transaction.rollback();
+    console.error('Error al actualizar la contribución:', error);
+    res.status(500).json({ 
+      message: 'Error al actualizar la contribución de fondo de reserva.', 
+      error: error.message 
+    });
   }
 };
 
@@ -62,15 +155,57 @@ exports.updateReserveFundContribution = async (req, res) => {
 exports.deleteReserveFundContribution = async (req, res) => {
   const { id } = req.params;
 
+  // Iniciar transacción
+  const transaction = await sequelize.transaction();
+
   try {
-    const contribution = await ReserveFundContribution.findByPk(id);
+    // Buscar la contribución
+    const contribution = await ReserveFundContribution.findByPk(id, { transaction });
     if (!contribution) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Contribución de fondo de reserva no encontrada.' });
     }
-    await contribution.update({ status: 'inactive' });
-    res.status(200).json({ message: 'Contribución de fondo de reserva eliminada exitosamente.' });
+
+    // Obtener el monto de la contribución
+    const contributionAmount = parseFloat(contribution.amount);
+    const reserveFundId = contribution.reserveFundId;
+
+    // Actualizar el saldo del fondo de reserva
+    const fund = await ReserveFund.findByPk(reserveFundId, { transaction });
+    if (!fund) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Fondo de reserva no encontrado.' });
+    }
+
+    // Reducir el saldo
+    const currentAmount = parseFloat(fund.amount);
+    const newAmount = Math.max(0, currentAmount - contributionAmount); // Evitar saldos negativos
+
+    await fund.update({ amount: newAmount.toFixed(2) }, { transaction });
+
+    // Eliminar la contribución (o marcarla como inactiva)
+    await contribution.destroy({ transaction });
+    // Alternativa: await contribution.update({ status: 'inactive' }, { transaction });
+
+    // Confirmar la transacción
+    await transaction.commit();
+
+    res.status(200).json({ 
+      message: 'Contribución de fondo de reserva eliminada exitosamente.',
+      fund: {
+        id: fund.id,
+        amount: fund.amount,
+        previousAmount: currentAmount.toFixed(2)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error al eliminar la contribución de fondo de reserva.', error });
+    // Revertir la transacción en caso de error
+    await transaction.rollback();
+    console.error('Error al eliminar la contribución:', error);
+    res.status(500).json({ 
+      message: 'Error al eliminar la contribución de fondo de reserva.', 
+      error: error.message 
+    });
   }
 };
 

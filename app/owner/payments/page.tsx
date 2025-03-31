@@ -2,141 +2,165 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useToken } from "../../hook/useToken";
-import Header from "../../components/Header";
+import { useToken } from "@/app/hook/useToken";
+import Header from "@/app/components/Header";
 import Link from "next/link";
-import { FiDollarSign, FiCalendar, FiCreditCard, FiAlertCircle, FiCheckCircle, FiFilter, FiPlus } from "react-icons/fi";
-import { getOwnerByUserId, getPaymentsByOwnerId, Payment } from "../../utils/api";
+import { FiDollarSign, FiCalendar, FiCreditCard, FiAlertCircle, FiCheckCircle, FiFilter, FiPlus, FiRefreshCw, FiArrowRight, FiFileText } from "react-icons/fi";
+import { getPaymentsByUserId, Payment } from "@/app/utils/api";
+import { getUserPaymentsServer } from "@/app/actions/payments";
+import { toast } from "react-hot-toast";
 
 export default function OwnerPayments() {
   const router = useRouter();
   const { token, userInfo, isLoading } = useToken();
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [filteredPayments, setFilteredPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filters, setFilters] = useState({
-    status: "all",
-    year: "all",
-    property: "all",
-    method: "all"
-  });
-  const [properties, setProperties] = useState<{id: number, name: string}[]>([]);
-  const [years, setYears] = useState<string[]>([]);
-  const [methods, setMethods] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    // Redirigir al login si no hay token
     if (!token && !isLoading) {
-      router.push("/login");
+      router.push('/login');
+      return;
+    }
+
+    // Verificar que el usuario sea propietario
+    if (userInfo && userInfo.role !== 'owner') {
+      router.push('/');
       return;
     }
 
     const fetchPayments = async () => {
-      if (isLoading) return;
-      if (!token) return;
-      
       try {
-        if (!userInfo?.id) {
-          throw new Error("ID de usuario no encontrado");
+        if (!userInfo || !userInfo.id) {
+          console.error('No se encontró ID de usuario');
+          setError('No se pudo obtener información del usuario');
+          setLoading(false);
+          return;
         }
 
-        console.log("Obteniendo datos del propietario...");
-        // Primero obtener el perfil del propietario usando la función de API
-        const ownerData = await getOwnerByUserId(userInfo.id, token);
+        setLoading(true);
         
-        console.log("Obteniendo pagos del propietario...");
-        // Luego obtener los pagos del propietario usando la función de API
-        const paymentsData = await getPaymentsByOwnerId(ownerData.id, token);
-        setPayments(paymentsData);
-        setFilteredPayments(paymentsData);
+        // Intentar obtener pagos con la API
+        const response = await fetch(`/api/user-payments?userId=${userInfo.id}`, {
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         
-        // Extraer propiedades únicas, años y métodos de pago para filtros
-        if (paymentsData.length > 0) {
-          // Propiedades únicas
-          const propertiesSet = new Set<string>();
-          const propertiesMap = new Map<number, string>();
-          
-          paymentsData.forEach((payment: Payment) => {
-            if (payment.receipt && payment.receipt.property) {
-              const propId = payment.receipt.property.id;
-              const propName = payment.receipt.property.name;
-              if (propId && propName && !propertiesMap.has(propId)) {
-                propertiesMap.set(propId, propName);
-              }
-            }
-          });
-          
-          const uniqueProperties = Array.from(propertiesMap.entries()).map(([id, name]) => ({ id, name }));
-          
-          // Años únicos
-          const uniqueYears = Array.from(new Set(paymentsData.map(
-            (payment: Payment) => {
-              const date = new Date(payment.date);
-              return date.getFullYear().toString();
-            }
-          ))).sort((a, b) => parseInt(b as string) - parseInt(a as string)) as string[];
-          
-          // Métodos de pago únicos
-          const uniqueMethods = Array.from(new Set(paymentsData.map(
-            (payment: Payment) => payment.method
-          ))) as string[];
-          
-          setProperties(uniqueProperties);
-          setYears(uniqueYears);
-          setMethods(uniqueMethods);
+        if (!response.ok) {
+          throw new Error(`Error al obtener pagos: ${response.status}`);
         }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          console.log('Pagos obtenidos con API:', result.payments);
+          setPayments(result.payments || []);
+        } else {
+          console.warn('API falló, usando método de cliente:', result.error);
+          
+          // Fallback a cliente
+          const paymentsData = await getPaymentsByUserId(userInfo.id, token || "");
+          console.log('Pagos obtenidos con cliente:', paymentsData);
+          setPayments(paymentsData || []);
+        }
+        
+        setError('');
       } catch (err) {
-        console.error("Error al cargar datos:", err);
-        setError(err instanceof Error ? err.message : "Error al cargar los pagos");
+        console.error('Error al obtener pagos:', err);
+        setError(err instanceof Error ? err.message : 'Error al obtener los pagos');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPayments();
-  }, [token, userInfo, router, isLoading]);
-
-  useEffect(() => {
-    if (payments.length > 0) {
-      let result = [...payments];
-      
-      if (filters.status !== "all") {
-        result = result.filter(payment => payment.status.toLowerCase() === filters.status);
-      }
-      
-      if (filters.year !== "all") {
-        result = result.filter(payment => {
-          const date = new Date(payment.date);
-          return date.getFullYear().toString() === filters.year;
-        });
-      }
-      
-      if (filters.property !== "all") {
-        result = result.filter(payment => 
-          payment.receipt && payment.receipt.property && payment.receipt.property.id && 
-          payment.receipt.property.id.toString() === filters.property
-        );
-      }
-      
-      if (filters.method !== "all") {
-        result = result.filter(payment => payment.method.toLowerCase() === filters.method.toLowerCase());
-      }
-      
-      setFilteredPayments(result);
+    // Solo cargar pagos si tenemos token y datos de usuario
+    if (token && userInfo && !isLoading) {
+      fetchPayments();
     }
-  }, [filters, payments]);
+  }, [token, userInfo, isLoading, router]);
+  
+  // Función para actualizar los pagos manualmente
+  const handleRefresh = async () => {
+    if (!userInfo || !userInfo.id) return;
+    
+    setRefreshing(true);
+    toast.loading('Actualizando pagos...', { id: 'refresh-payments' });
+    
+    try {
+      // Intentar usar la API primero
+      const response = await fetch(`/api/user-payments?userId=${userInfo.id}`, {
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error al obtener pagos: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setPayments(result.payments || []);
+        toast.success('Pagos actualizados correctamente', { id: 'refresh-payments' });
+      } else {
+        // Fallback a cliente
+        const paymentsData = await getPaymentsByUserId(userInfo.id, token || "");
+        setPayments(paymentsData || []);
+        toast.success('Pagos actualizados correctamente', { id: 'refresh-payments' });
+      }
+    } catch (err) {
+      console.error('Error al actualizar pagos:', err);
+      toast.error('Error al actualizar pagos', { id: 'refresh-payments' });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterName]: value
-    }));
+  const formatDate = (dateString: string) => {
+    try {
+      if (!dateString) return "Fecha no disponible";
+      
+      // Ensure the date string is properly formatted
+      const date = new Date(dateString);
+      
+      // Verificar si la fecha es válida
+      if (isNaN(date.getTime())) {
+        console.warn(`Invalid date format: ${dateString}`);
+        return "Fecha no disponible";
+      }
+      
+      // Format date using Intl.DateTimeFormat
+      return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      }).format(date);
+    } catch (error) {
+      console.error("Error al formatear fecha:", error, "Fecha original:", dateString);
+      return "Fecha no disponible";
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount);
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
+    // Convert to lowercase and trim for consistent comparison
+    const statusLower = (status || '').toLowerCase().trim();
+    
+    switch (statusLower) {
       case 'approved':
       case 'aprobado':
+      case 'aprovado': // Common misspelling
         return (
           <span className="px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs flex items-center">
             <FiCheckCircle className="mr-1" />
@@ -145,6 +169,7 @@ export default function OwnerPayments() {
         );
       case 'pending':
       case 'pendiente':
+      case 'pendiente de aprobación':
         return (
           <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs flex items-center">
             <FiAlertCircle className="mr-1" />
@@ -153,16 +178,26 @@ export default function OwnerPayments() {
         );
       case 'rejected':
       case 'rechazado':
+      case 'rechazo':
         return (
           <span className="px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs flex items-center">
             <FiAlertCircle className="mr-1" />
             Rechazado
           </span>
         );
+      case 'verified':
+      case 'verificado':
+        return (
+          <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs flex items-center">
+            <FiCheckCircle className="mr-1" />
+            Verificado
+          </span>
+        );
       default:
+        console.log("Estado desconocido:", status);
         return (
           <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-xs flex items-center">
-            {status}
+            {status || 'Desconocido'}
           </span>
         );
     }
@@ -207,35 +242,6 @@ export default function OwnerPayments() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      if (!dateString) return "Fecha no disponible";
-      
-      const date = new Date(dateString);
-      // Verificar si la fecha es válida
-      if (isNaN(date.getTime())) {
-        return "Fecha inválida";
-      }
-      
-      return new Intl.DateTimeFormat('es-ES', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-      }).format(date);
-    } catch (error) {
-      console.error("Error al formatear fecha:", error);
-      return "Error de formato";
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
-    }).format(amount);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -268,93 +274,43 @@ export default function OwnerPayments() {
     <div className="min-h-screen bg-gray-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Mis Pagos</h1>
-            <Link 
-              href="/payment/new" 
-              className="bg-green-600 text-white px-4 py-2 rounded-md flex items-center hover:bg-green-700 transition-colors"
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Mis Pagos</h1>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+              title="Actualizar pagos"
+            >
+              <FiRefreshCw className={`mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Actualizando...' : 'Actualizar datos'}
+            </button>
+            
+            <Link
+              href="/payment/new"
+              className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
             >
               <FiPlus className="mr-1" /> Registrar Pago
             </Link>
           </div>
-          
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 rounded-md p-4 mb-6">
+            {error}
+          </div>
+        )}
+
+        <div className="bg-white shadow-md rounded-lg p-6 mb-8">
           <div className="text-gray-500 text-sm mb-6">
             Total: <span className="font-medium">{payments.length}</span> pagos registrados
           </div>
           
-          {/* Filtros */}
-          <div className="bg-gray-50 p-4 rounded-md mb-6">
-            <div className="flex items-center mb-3">
-              <FiFilter className="text-gray-500 mr-2" />
-              <h2 className="text-lg font-medium">Filtros</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Estado</label>
-                <select 
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
-                >
-                  <option value="all">Todos</option>
-                  <option value="approved">Aprobados</option>
-                  <option value="pending">Pendientes</option>
-                  <option value="rejected">Rechazados</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Año</label>
-                <select 
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filters.year}
-                  onChange={(e) => handleFilterChange('year', e.target.value)}
-                >
-                  <option value="all">Todos</option>
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Propiedad</label>
-                <select 
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filters.property}
-                  onChange={(e) => handleFilterChange('property', e.target.value)}
-                >
-                  <option value="all">Todas</option>
-                  {properties.map(property => (
-                    <option key={property.id} value={property.id}>{property.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Método de Pago</label>
-                <select 
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filters.method}
-                  onChange={(e) => handleFilterChange('method', e.target.value)}
-                >
-                  <option value="all">Todos</option>
-                  {methods.map(method => (
-                    <option key={method} value={method}>
-                      {method === 'transfer' ? 'Transferencia' : 
-                       method === 'cash' ? 'Efectivo' : 
-                       method === 'credit_card' ? 'Tarjeta de Crédito' : 
-                       method === 'debit_card' ? 'Tarjeta de Débito' : 
-                       method}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {filteredPayments.length === 0 ? (
+          {payments.length === 0 ? (
             <div className="text-center py-8">
               <FiDollarSign className="mx-auto text-gray-300 mb-4" size={48} />
-              <p className="text-gray-500">No se encontraron pagos con los filtros seleccionados</p>
+              <p className="text-gray-500">No se encontraron pagos</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -388,7 +344,7 @@ export default function OwnerPayments() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredPayments.map((payment) => (
+                  {payments.map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">#{payment.id}</div>
@@ -424,7 +380,13 @@ export default function OwnerPayments() {
                         {payment.receipt ? (
                           <div className="text-sm">
                             <div className="font-medium text-gray-900">
-                              {payment.receipt.property && payment.receipt.property.name ? payment.receipt.property.name : 'Sin propiedad'}
+                              {payment.receipt.property ? (
+                                <>
+                                  {payment.receipt.property.type && 
+                                   `${payment.receipt.property.type.charAt(0).toUpperCase() + payment.receipt.property.type.slice(1)}`}
+                                  {payment.receipt.property.number && ` ${payment.receipt.property.number}`}
+                                </>
+                              ) : 'Sin propiedad'}
                             </div>
                             <div className="text-gray-500">
                               {payment.receipt.month} {payment.receipt.year}
@@ -440,9 +402,9 @@ export default function OwnerPayments() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
                           href={`/payment/${payment.id}`}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="inline-flex items-center px-3 py-1 rounded-md text-white bg-blue-600 hover:bg-blue-700"
                         >
-                          Ver
+                          Ver detalles
                         </Link>
                       </td>
                     </tr>

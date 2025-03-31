@@ -70,6 +70,10 @@ const User = sequelize.define('User', {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0, // Crédito acumulado por pagos en exceso
   },
+  pending_amount: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0, // Monto pendiente de pago
+  },
   authorized: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,

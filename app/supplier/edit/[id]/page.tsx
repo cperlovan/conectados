@@ -5,33 +5,38 @@ import { useRouter } from "next/navigation";
 import { useToken } from "../../../hook/useToken";
 import Header from "../../../components/Header";
 
-interface EconomicActivity {
-  id: number;
+interface ContactInfo {
   name: string;
-  description: string;
+  lastname: string;
+  phone: string;
+  email: string;
+  address: string;
 }
 
 interface Supplier {
   id: number;
   name: string;
   type: string;
-  contactInfo: {
-    name: string;
-    lastname: string;
-    phone: string;
-    email: string;
-    address: string;
-  };
+  contactInfo: ContactInfo;
   status: "active" | "inactive";
-  economicActivities: Array<{
-    id: number;
-    name: string;
-  }>;
+  economicActivities: { id: number; name: string }[];
+  condominiumId?: number;
 }
 
-export default function EditSupplier({ params }: { params: Promise<{ id: string }> }) {
+interface EconomicActivity {
+  id: number;
+  name: string;
+}
+
+export default function EditSupplierPage({ params }: { params: { id: string } }) {
+  const { token, userInfo, isLoading: tokenLoading } = useToken();
   const router = useRouter();
-  const { token, userInfo } = useToken();
+  const [supplierId, setSupplierId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Mantenemos los estados originales
   const [activities, setActivities] = useState<EconomicActivity[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<number[]>([]);
   const [supplierData, setSupplierData] = useState<Supplier>({
@@ -48,135 +53,128 @@ export default function EditSupplier({ params }: { params: Promise<{ id: string 
     status: "active",
     economicActivities: [],
   });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  // Desenvolver los parámetros de ruta usando React.use()
-  const { id } = React.use(params);
-  const supplierId = Number(id);
-
-  if (isNaN(supplierId)) {
-    setError("ID de proveedor inválido");
-    return (
-      <div className="min-h-screen bg-gray-100">
-        <Header />
-        <div className="container mx-auto p-4">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            ID de proveedor inválido
-          </div>
-          <button
-            onClick={() => router.push("/supplier")}
-            className="bg-gray-600 text-white p-2 rounded hover:bg-gray-700"
-          >
-            Volver a la lista de proveedores
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Extraer el id al iniciar el componente
+  useEffect(() => {
+    if (params) {
+      setSupplierId(params.id);
+    }
+  }, [params]);
 
   useEffect(() => {
-    let isMounted = true;
+    if (tokenLoading) return;
+
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    if (userInfo?.role !== 'admin' && userInfo?.role !== 'superadmin') {
+      router.push("/unauthorized");
+      return;
+    }
 
     const fetchData = async () => {
-      if (!token || !userInfo?.condominiumId) {
-        console.log("No hay token o condominiumId disponible");
+      try {
+        setLoading(true);
+        setError(null);
+        
+        if (!supplierId) return;
+        
+        await fetchSupplier();
+      } catch (err) {
+        console.error("Error al cargar datos:", err);
+        setError(err instanceof Error ? err.message : "Error al cargar los datos necesarios");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (supplierId) {
+      fetchData();
+    }
+  }, [token, userInfo, tokenLoading, router, supplierId]);
+
+  const fetchSupplier = async () => {
+    try {
+      if (!token || !supplierId || !userInfo?.condominiumId) return;
+      
+      console.log(`Obteniendo información del proveedor con ID: ${supplierId}`);
+      
+      // Obtener el proveedor específico
+      const response = await fetch(`http://localhost:3040/api/suppliers/${supplierId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      });
+
+      if (!response.ok) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Error al cargar los datos del proveedor: ${response.status}`);
+        } else {
+          const errorText = await response.text();
+          console.error("Respuesta del servidor:", errorText);
+          throw new Error(`Error al cargar los datos del proveedor: ${response.status}`);
+        }
+      }
+
+      const data = await response.json();
+      console.log("Datos del proveedor recibidos:", data);
+
+      // Verificar que el proveedor pertenece al condominio actual
+      if (data.condominiumId && Number(data.condominiumId) !== Number(userInfo.condominiumId)) {
+        console.log("Error de permisos: El proveedor pertenece a un condominio diferente");
+        setError("No tiene permisos para acceder a este proveedor. Por favor, regrese a la lista de proveedores.");
         return;
       }
 
-      try {
-        console.log("Intentando cargar proveedor con ID:", supplierId);
-        console.log("CondominiumId del usuario:", userInfo.condominiumId);
-        
-        // Obtener el proveedor específico
-        const response = await fetch(`http://localhost:3040/api/suppliers/${supplierId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-        });
+      // Cargar las actividades económicas disponibles
+      const activitiesResponse = await fetch("http://localhost:3040/api/economic-activities", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      });
 
-        if (!response.ok) {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Error al cargar los datos del proveedor: ${response.status}`);
-          } else {
-            const errorText = await response.text();
-            console.error("Respuesta del servidor:", errorText);
-            throw new Error(`Error al cargar los datos del proveedor: ${response.status}`);
-          }
-        }
-
-        const data = await response.json();
-        console.log("Datos del proveedor recibidos:", data);
-
-        // Verificar que el proveedor pertenece al condominio actual
-        if (data.condominiumId && Number(data.condominiumId) !== Number(userInfo.condominiumId)) {
-          console.log("Error de permisos: El proveedor pertenece a un condominio diferente");
-          if (isMounted) {
-            setError("No tiene permisos para acceder a este proveedor. Por favor, regrese a la lista de proveedores.");
-            setLoading(false);
-          }
-          return;
-        }
-
-        // Cargar las actividades económicas disponibles
-        const activitiesResponse = await fetch("http://localhost:3040/api/economic-activities", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-        });
-
-        if (!activitiesResponse.ok) {
-          throw new Error("Error al cargar las actividades económicas");
-        }
-
-        const activitiesData = await activitiesResponse.json();
-
-        // Mapear los datos al formato esperado
-        const mappedSupplier = {
-          id: data.id,
-          name: data.name,
-          type: data.type,
-          status: data.status || "active",
-          contactInfo: {
-            name: data.contactInfo?.name || "",
-            lastname: data.contactInfo?.lastname || "",
-            phone: data.contactInfo?.phone || "",
-            email: data.contactInfo?.email || "",
-            address: data.contactInfo?.address || ""
-          },
-          economicActivities: data.economicActivities || []
-        };
-
-        if (isMounted) {
-          setActivities(activitiesData);
-          setSupplierData(mappedSupplier);
-          
-          // Establecer las actividades seleccionadas
-          if (mappedSupplier.economicActivities && mappedSupplier.economicActivities.length > 0) {
-            const selectedIds = mappedSupplier.economicActivities.map((activity: { id: number; name: string }) => activity.id);
-            setSelectedActivities(selectedIds);
-          }
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Error completo:", err);
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "Error al cargar los datos");
-          setLoading(false);
-        }
+      if (!activitiesResponse.ok) {
+        throw new Error("Error al cargar las actividades económicas");
       }
-    };
 
-    fetchData();
+      const activitiesData = await activitiesResponse.json();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [token, supplierId, userInfo?.condominiumId]);
+      // Mapear los datos al formato esperado
+      const mappedSupplier = {
+        id: data.id,
+        name: data.name,
+        type: data.type,
+        status: data.status || "active",
+        contactInfo: {
+          name: data.contactInfo?.name || "",
+          lastname: data.contactInfo?.lastname || "",
+          phone: data.contactInfo?.phone || "",
+          email: data.contactInfo?.email || "",
+          address: data.contactInfo?.address || ""
+        },
+        economicActivities: data.economicActivities || []
+      };
+
+      setActivities(activitiesData);
+      setSupplierData(mappedSupplier);
+      
+      // Establecer las actividades seleccionadas
+      if (mappedSupplier.economicActivities && mappedSupplier.economicActivities.length > 0) {
+        const selectedIds = mappedSupplier.economicActivities.map((activity: { id: number; name: string }) => activity.id);
+        setSelectedActivities(selectedIds);
+      }
+    } catch (err) {
+      console.error("Error al cargar el proveedor:", err);
+      setError(err instanceof Error ? err.message : "Error al cargar los datos del proveedor");
+      throw err;
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -197,22 +195,27 @@ export default function EditSupplier({ params }: { params: Promise<{ id: string 
     }
   };
 
-  const handleActivityChange = (activityId: number) => {
-    setSelectedActivities(prev => {
-      if (prev.includes(activityId)) {
-        return prev.filter(id => id !== activityId);
-      }
-      return [...prev, activityId];
-    });
+  const handleActivityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const activityId = parseInt(e.target.value);
+    const isChecked = e.target.checked;
+
+    if (isChecked) {
+      setSelectedActivities(prev => [...prev, activityId]);
+    } else {
+      setSelectedActivities(prev => prev.filter(id => id !== activityId));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    if (submitting) return;
+
+    setSubmitting(true);
+    setError(null);
 
     try {
-      if (!userInfo?.condominiumId) {
-        throw new Error("No se encontró el ID del condominio");
+      if (!supplierId || !userInfo?.condominiumId) {
+        throw new Error("Información necesaria no disponible");
       }
 
       // Validar campos obligatorios
@@ -232,7 +235,7 @@ export default function EditSupplier({ params }: { params: Promise<{ id: string 
       }
 
       // Asegurarnos de que el ID sea un número válido
-      const numericId = parseInt(supplierId.toString(), 10);
+      const numericId = parseInt(supplierId, 10);
       if (isNaN(numericId)) {
         throw new Error("ID de proveedor inválido");
       }
@@ -242,20 +245,12 @@ export default function EditSupplier({ params }: { params: Promise<{ id: string 
         name: supplierData.name,
         type: supplierData.type,
         status: supplierData.status,
-        contactInfo: {
-          name: supplierData.contactInfo.name,
-          lastname: supplierData.contactInfo.lastname,
-          phone: supplierData.contactInfo.phone,
-          email: supplierData.contactInfo.email,
-          address: supplierData.contactInfo.address
-        },
+        contactInfo: supplierData.contactInfo,
         economicActivities: selectedActivities
       };
 
       console.log("Datos a enviar:", dataToSend);
-      console.log("ID del proveedor (numérico):", numericId);
-      console.log("CondominiumId:", userInfo.condominiumId);
-
+      
       const response = await fetch(`http://localhost:3040/api/suppliers/${numericId}`, {
         method: "PUT",
         headers: {
@@ -266,10 +261,10 @@ export default function EditSupplier({ params }: { params: Promise<{ id: string 
       });
 
       const contentType = response.headers.get("content-type");
-      let errorData;
+      let responseData;
       
       if (contentType && contentType.includes("application/json")) {
-        errorData = await response.json();
+        responseData = await response.json();
       } else {
         const errorText = await response.text();
         console.error("Respuesta del servidor (texto):", errorText);
@@ -277,17 +272,18 @@ export default function EditSupplier({ params }: { params: Promise<{ id: string 
       }
 
       if (!response.ok) {
-        console.error("Error del servidor:", errorData);
-        throw new Error(errorData.message || `Error al actualizar el proveedor: ${response.status}`);
+        console.error("Error del servidor:", responseData);
+        throw new Error(responseData.message || `Error al actualizar el proveedor: ${response.status}`);
       }
 
-      console.log("Respuesta exitosa:", errorData);
-
+      console.log("Respuesta exitosa:", responseData);
       alert("Proveedor actualizado exitosamente");
       router.push("/supplier");
     } catch (err) {
       console.error("Error al actualizar:", err);
       setError(err instanceof Error ? err.message : "Error al actualizar el proveedor");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -404,8 +400,9 @@ export default function EditSupplier({ params }: { params: Promise<{ id: string 
                 <label key={activity.id} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
+                    value={activity.id}
                     checked={selectedActivities.includes(activity.id)}
-                    onChange={() => handleActivityChange(activity.id)}
+                    onChange={handleActivityChange}
                     className="rounded"
                   />
                   <span>{activity.name}</span>

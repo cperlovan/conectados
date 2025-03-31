@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useToken } from "../../hook/useToken";
 import Header from "../../components/Header";
 import { toast } from "react-hot-toast";
@@ -33,9 +33,13 @@ interface FormData {
 
 export default function RegisterOwner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const userIdParam = searchParams.get('userId');
+  const returnTo = searchParams.get('returnTo');
   const { token, userInfo, isLoading } = useToken();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [formData, setFormData] = useState<FormData>({
     fullName: "",
     documentId: "",
@@ -71,6 +75,49 @@ export default function RegisterOwner() {
       router.push("/login");
     }
   }, [token, router, isLoading]);
+
+  // Cargar datos del usuario si se proporciona un userId en la URL
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!userIdParam || !token) return;
+      
+      try {
+        setLoading(true);
+        
+        // Obtener datos del usuario especificado
+        const response = await fetch(`http://localhost:3040/api/users/${userIdParam}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error al obtener datos del usuario: ${response.status}`);
+        }
+        
+        const userData = await response.json();
+        setSelectedUser(userData);
+        
+        // Prellenar el formulario con los datos del usuario
+        if (userData.name) {
+          setFormData(prev => ({
+            ...prev,
+            fullName: userData.name
+          }));
+        }
+        
+      } catch (error) {
+        console.error("Error al cargar datos del usuario:", error);
+        setError(error instanceof Error ? error.message : "Error al cargar datos del usuario");
+        toast.error(error instanceof Error ? error.message : "Error al cargar datos del usuario");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUserData();
+  }, [userIdParam, token]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -136,8 +183,11 @@ export default function RegisterOwner() {
         throw new Error("No hay token disponible");
       }
 
-      if (!userInfo?.id) {
-        throw new Error("Información de usuario no disponible");
+      // Determinar qué ID de usuario utilizar
+      const targetUserId = userIdParam || userInfo?.id;
+
+      if (!targetUserId) {
+        throw new Error("ID de usuario no disponible");
       }
 
       // Validación de datos
@@ -148,15 +198,16 @@ export default function RegisterOwner() {
       // Datos a enviar al API
       const dataToSend = {
         ...formData,
-        userId: userInfo.id,
-        condominiumId: userInfo.condominiumId
+        userId: parseInt(targetUserId),
+        condominiumId: userInfo?.condominiumId
       };
 
       console.log("Enviando datos al backend:", dataToSend);
-      console.log("URL de la petición:", `http://localhost:3040/api/owners/user/${userInfo.id}`);
+      console.log("URL de la petición:", `http://localhost:3040/api/owners/user/${targetUserId}`);
       console.log("Token disponible:", !!token);
+      console.log("ID de usuario utilizado:", targetUserId);
 
-      const response = await fetch(`http://localhost:3040/api/owners/user/${userInfo.id}`, {
+      const response = await fetch(`http://localhost:3040/api/owners/user/${targetUserId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,7 +238,12 @@ export default function RegisterOwner() {
       
       // Usar setTimeout para asegurar que el toast se muestre antes de la redirección
       setTimeout(() => {
-        router.push("/home");
+        // Determinar a dónde redirigir basado en el parámetro returnTo
+        if (returnTo === 'unregistered-owners') {
+          router.push('/owner/unregistered-owners');
+        } else {
+          router.push('/home');
+        }
       }, 1000);
     } catch (error) {
       console.error("Error completo:", error);

@@ -35,24 +35,24 @@ export default function SupplierPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalSuppliers, setTotalSuppliers] = useState(0);
 
-  const fetchSuppliers = async () => {
+      const fetchSuppliers = async () => {
     if (!token || !userInfo?.condominiumId) {
       setLoading(false);
-      return;
-    }
-
+            return;
+          }
+  
     try {
       const response = await fetch(`http://localhost:3040/api/suppliers/condominium/${userInfo.condominiumId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
       });
-
-      if (!response.ok) {
+  
+          if (!response.ok) {
         throw new Error("Error al cargar los proveedores");
-      }
-
-      const data = await response.json();
+          }
+  
+          const data = await response.json();
       const suppliersData = Array.isArray(data) ? data : [];
       
       const mappedSuppliers = suppliersData.map((supplier: any) => ({
@@ -78,11 +78,11 @@ export default function SupplierPage() {
       console.error("Error al cargar proveedores:", err);
       setError(err instanceof Error ? err.message : "Error al cargar los proveedores");
       setSuppliers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+        } finally {
+          setLoading(false);
+        }
+      };
+  
   useEffect(() => {
     if (token && userInfo?.condominiumId) {
       fetchSuppliers();
@@ -111,7 +111,7 @@ export default function SupplierPage() {
       if (!response.ok) {
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
-          const errorData = await response.json();
+        const errorData = await response.json();
           throw new Error(errorData.message || `Error al desactivar el proveedor: ${response.status}`);
         } else {
           const errorText = await response.text();
@@ -356,6 +356,6 @@ export default function SupplierPage() {
           )}
         </div>
       </div>
-    </div>
+  </div>
   );
 }

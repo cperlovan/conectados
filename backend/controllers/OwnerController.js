@@ -103,8 +103,20 @@ const createOrUpdateOwner = async (req, res) => {
     let message;
 
     if (owner) {
-      // Actualizar el propietario existente
-      await owner.update(ownerData);
+      // Actualizar el propietario existente, pero solo los campos que llegaron en la petición
+      // Filtramos para no actualizar campos que estén indefinidos o nulos
+      const fieldsToUpdate = {};
+      Object.entries(ownerData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          fieldsToUpdate[key] = value;
+        }
+      });
+      
+      // Solo actualizamos si hay campos para actualizar
+      if (Object.keys(fieldsToUpdate).length > 0) {
+        await owner.update(fieldsToUpdate);
+      }
+      
       message = 'Propietario actualizado correctamente';
     } else {
       // Crear un nuevo propietario
@@ -119,7 +131,19 @@ const createOrUpdateOwner = async (req, res) => {
       message = 'Propietario creado correctamente';
     }
 
-    res.status(200).json({ message, owner });
+    // Obtener el propietario actualizado con sus relaciones
+    const updatedOwner = await Owner.findOne({ 
+      where: { userId },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'email', 'status']
+        }
+      ]
+    });
+
+    res.status(200).json({ message, owner: updatedOwner });
   } catch (error) {
     console.error('Error al crear/actualizar propietario:', error);
     res.status(500).json({ message: 'Error al procesar la solicitud', error: error.message });

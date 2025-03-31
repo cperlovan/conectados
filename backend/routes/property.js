@@ -24,4 +24,7 @@ router.put('/:id', authenticateToken, propertyController.updateProperty);
 // Ruta para eliminar una propiedad
 router.delete('/:id', authenticateToken, propertyController.deleteProperty);
 
+// Ruta para actualizar alícuotas en lote
+router.put('/quotas/batch', authenticateToken, propertyController.updateQuotasBatch);
+
 module.exports = router;

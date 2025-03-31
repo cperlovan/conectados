@@ -10,7 +10,7 @@ router.get('/user/:userId', authenticateToken, ownerController.getOwnerByUserId)
 router.post('/user/:userId', authenticateToken, ownerController.createOrUpdateOwner);
 
 // Ruta para actualizar un propietario por ID de usuario (alternativa)
-router.put('/user/:userId', authenticateToken, ownerController.createOrUpdateOwner);
+router.put('/owners/:userId', authenticateToken, ownerController.createOrUpdateOwner);
 
 // Ruta para obtener un propietario por ID
 router.get('/:id', authenticateToken, ownerController.getOwnerById);

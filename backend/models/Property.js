@@ -41,7 +41,7 @@ Property.init({
     comment: 'Bloque o torre en la que se encuentra la propiedad'
   },
   status: {
-    type: DataTypes.ENUM('occupied', 'vacant', 'under_maintenance'),
+    type: DataTypes.ENUM('occupied', 'vacant', 'under_maintenance', 'active'),
     allowNull: false,
     defaultValue: 'occupied'
   },

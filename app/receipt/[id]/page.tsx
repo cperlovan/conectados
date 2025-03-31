@@ -58,7 +58,14 @@ export default function ReceiptDetail() {
     fetchReceipt();
   }, [token, userInfo, router, isLoading, params.id]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
+    if (!status) return (
+      <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-sm flex items-center">
+        <FiAlertCircle className="mr-2" />
+        Pendiente
+      </span>
+    );
+    
     switch (status.toLowerCase()) {
       case 'paid':
       case 'pagado':
@@ -202,7 +209,7 @@ export default function ReceiptDetail() {
                   Recibo #{receipt.id}
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  Período: {receipt.month} {receipt.year}
+                  Período: {receipt.month || 'N/A'} {receipt.year || 'N/A'}
                 </p>
               </div>
               <div className="mt-4 md:mt-0">
@@ -220,16 +227,24 @@ export default function ReceiptDetail() {
                   <div className="flex justify-between border-b border-gray-100 pb-2">
                     <span className="text-gray-600">Propiedad:</span>
                     <span className="font-medium text-gray-800">
-                      {receipt.property?.name || "N/A"}
-                      {receipt.property?.number && ` - N° ${receipt.property.number}`}
-                      {receipt.property?.block && ` - Bloque ${receipt.property.block}`}
+                      {receipt.property ? (
+                        <>
+                          {receipt.property.type && `${receipt.property.type.charAt(0).toUpperCase() + receipt.property.type.slice(1)} - `}
+                          {receipt.property.number && `N° ${receipt.property.number}`}
+                          {receipt.property.block && ` - Bloque ${receipt.property.block}`}
+                          {receipt.property.floor && ` - Piso ${receipt.property.floor}`}
+                          {receipt.property.aliquot && ` (${receipt.property.aliquot}%)`}
+                        </>
+                      ) : (
+                        "N/A"
+                      )}
                     </span>
                   </div>
                   
                   <div className="flex justify-between border-b border-gray-100 pb-2">
                     <span className="text-gray-600">Monto:</span>
                     <span className="font-medium text-gray-800">
-                      {formatCurrency(receipt.amount)}
+                      {formatCurrency(receipt.amount || 0)}
                     </span>
                   </div>
                   
@@ -243,11 +258,12 @@ export default function ReceiptDetail() {
                   <div className="flex justify-between border-b border-gray-100 pb-2">
                     <span className="text-gray-600">Fecha de vencimiento:</span>
                     <span className={`font-medium ${
-                      new Date(receipt.dueDate) < new Date() && receipt.status.toLowerCase() !== 'paid' 
+                      receipt.dueDate && receipt.status?.toLowerCase() !== 'paid' && 
+                      new Date(receipt.dueDate) < new Date()
                       ? 'text-red-600' 
                       : 'text-gray-800'
                     }`}>
-                      {formatDate(receipt.dueDate)}
+                      {receipt.dueDate ? formatDate(receipt.dueDate) : "N/A"}
                     </span>
                   </div>
                   
@@ -315,7 +331,7 @@ export default function ReceiptDetail() {
                 Descargar PDF
               </button>
               
-              {(receipt.status.toLowerCase() === 'pending' || receipt.status.toLowerCase() === 'pendiente') && (
+              {receipt.status?.toLowerCase() === 'pending' || receipt.status?.toLowerCase() === 'pendiente' ? (
                 <Link
                   href={`/payment/new?receiptId=${receipt.id}`}
                   className="flex items-center justify-center bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
@@ -323,7 +339,7 @@ export default function ReceiptDetail() {
                   <FiCreditCard className="mr-2" />
                   Realizar pago
                 </Link>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

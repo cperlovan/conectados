@@ -22,6 +22,10 @@ const Receipt = sequelize.define('Receipt', {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0, // Crédito acumulado por pagos en exceso
   },
+  visible: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false, // Por defecto los recibos no son visibles
+  },
   userId: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -45,7 +49,21 @@ const Receipt = sequelize.define('Receipt', {
       model: 'Properties',
       key: 'id',
     },
+    onDelete: 'SET NULL', // Si se elimina la propiedad, se mantiene el recibo pero sin propiedad
+    onUpdate: 'CASCADE', // Si se actualiza el ID de la propiedad, actualizar la referencia
   },
+  month: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: {
+      min: 1, 
+      max: 12
+    }
+  },
+  year: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  }
 });
 
 module.exports = Receipt;
