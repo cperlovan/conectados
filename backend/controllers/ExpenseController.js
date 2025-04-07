@@ -163,92 +163,56 @@ exports.getExpensesSum = async (req, res) => {
   }
 
   try {
-    console.log(`Verificando todos los gastos del condominio ${condominiumId} para depuración`);
-    
-    // Primero obtener todos los gastos del condominio para verificar
-    const todosLosGastos = await Expense.findAll({
-      where: { 
-        condominiumId,
-        status: 'active'
+    // Crear rango de fechas para el mes y año especificados
+    const startDate = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, 1, 0, 0, 0));
+    const endDate = new Date(Date.UTC(parseInt(year), parseInt(month), 0, 23, 59, 59));
+
+    console.log(`Buscando gastos entre ${startDate.toISOString()} y ${endDate.toISOString()} para condominio ${condominiumId}`);
+
+    // Obtener todos los gastos activos del condominio para el mes y año especificados
+    const gastos = await Expense.findAll({
+      where: {
+        condominiumId: parseInt(condominiumId),
+        status: 'active',
+        date: {
+          [Op.gte]: startDate,
+          [Op.lte]: endDate
+        }
       },
       raw: true
     });
+
+    console.log(`Encontrados ${gastos.length} gastos para el período`);
     
-    console.log(`Total de gastos activos en el condominio: ${todosLosGastos.length}`);
-    if (todosLosGastos.length > 0) {
-      // Mostrar las fechas de todos los gastos para depuración
-      console.log("Fechas de todos los gastos:", todosLosGastos.map(g => ({ 
-        id: g.id, 
-        date: g.date, 
-        dateType: typeof g.date,
-        amount: g.amount
-      })));
-    }
-    
-    // Crear rango de fechas para el mes y año especificados
-    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
-    // Obtener el último día del mes (usando Date para calcular el último día)
-    const endDate = new Date(parseInt(year), parseInt(month), 0);
-    
-    // Formatear las fechas para que coincidan con el formato en la base de datos
-    const formattedStartDate = startDate.toISOString().split('T')[0];
-    const formattedEndDate = endDate.toISOString().split('T')[0];
-    
-    console.log(`Buscando gastos entre ${formattedStartDate} y ${formattedEndDate} para condominio ${condominiumId}`);
-    
-    // Comprobar formato de fechas en la base de datos
-    console.log("Comprobando formato de fechas en la DB:");
-    if (todosLosGastos.length > 0) {
-      const primeraFecha = todosLosGastos[0].date;
-      console.log(`Ejemplo de fecha en DB: ${primeraFecha}, tipo: ${typeof primeraFecha}`);
-      if (typeof primeraFecha === 'string') {
-        console.log("Formato de fecha: string (YYYY-MM-DD)");
-      } else if (primeraFecha instanceof Date) {
-        console.log("Formato de fecha: objeto Date");
-      }
-    }
-    
-    // Si el formato de fecha es diferente, intentar otro enfoque
-    // Primero intentar con string explicito con comodines SQL %
-    const gastosFiltrados = todosLosGastos.filter(gasto => {
-      if (!gasto.date) return false;
-      
-      const fechaGasto = new Date(gasto.date);
-      const mesGasto = fechaGasto.getMonth() + 1; // 1-12
-      const anioGasto = fechaGasto.getFullYear();
-      
-      return mesGasto === parseInt(month) && anioGasto === parseInt(year);
-    });
-    
-    console.log(`Encontrados ${gastosFiltrados.length} gastos para el período después de filtrado manual`);
-    
-    if (gastosFiltrados.length > 0) {
-      console.log("Gastos filtrados manualmente:", gastosFiltrados.map(g => ({
+    if (gastos.length > 0) {
+      console.log("Muestra de gastos encontrados:", gastos.map(g => ({
         id: g.id,
         date: g.date,
         amount: g.amount,
         description: g.description
       })));
     }
-    
-    // Calcular suma manualmente con los gastos filtrados
-    let sumaManual = 0;
-    gastosFiltrados.forEach(gasto => {
+
+    // Calcular suma de los gastos encontrados
+    const sumaTotal = gastos.reduce((total, gasto) => {
       const amount = parseFloat(gasto.amount);
-      if (!isNaN(amount)) {
-        sumaManual += amount;
-      }
-    });
-    
-    console.log(`Suma manual calculada: ${sumaManual}`);
-    
-    res.status(200).json({ 
-      sum: sumaManual,
+      return !isNaN(amount) ? total + amount : total;
+    }, 0);
+
+    console.log(`Suma total calculada: ${sumaTotal}`);
+
+    res.status(200).json({
+      sum: sumaTotal,
       month: parseInt(month),
       year: parseInt(year),
       condominiumId: parseInt(condominiumId),
-      cantidadGastos: gastosFiltrados.length,
-      gastosMuestra: gastosFiltrados.length > 0 ? gastosFiltrados.slice(0, Math.min(5, gastosFiltrados.length)) : []
+      cantidadGastos: gastos.length,
+      gastosMuestra: gastos.map(g => ({
+        id: g.id,
+        date: g.date,
+        amount: g.amount,
+        description: g.description
+      }))
     });
   } catch (error) {
     console.error('Error al calcular la suma de gastos:', error);

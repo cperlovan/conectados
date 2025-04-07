@@ -40,7 +40,7 @@ const User = sequelize.define('User', {
     allowNull: false,
   },
   role: {
-    type: DataTypes.ENUM('admin', 'copropietario', 'ocupante', 'proveedor', 'superadmin'),
+    type: DataTypes.ENUM('admin', 'copropietario'),
     allowNull: false
   },
   status: {
@@ -53,17 +53,10 @@ const User = sequelize.define('User', {
   },
   condominiumId: {
     type: DataTypes.INTEGER,
-    allowNull: true,
+    allowNull: false,
     references: {
       model: 'Condominiums',
       key: 'id'
-    },
-    validate: {
-      customValidator(value) {
-        if (this.role !== 'superadmin' && !value) {
-          throw new Error('condominiumId es requerido para roles no superadmin');
-        }
-      }
     }
   },
   credit_balance: {
@@ -78,6 +71,10 @@ const User = sequelize.define('User', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  credit_amount: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0
+  }
 }, {
   timestamps: true,
   indexes: [

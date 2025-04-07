@@ -8,56 +8,104 @@ import Link from "next/link";
 
 interface Invoice {
   id: number;
-  budgetId: number;
   number: string;
-  amount: number;
+  amount: string | number;
   status: string;
+  paymentDate: string | null;
+  issueDate: string;
+  dueDate: string;
+  notes: string | null;
+  budgetId: number;
+  supplierId: number;
+  condominiumId: number;
   createdAt: string;
   updatedAt: string;
-  budget: {
+  Budget?: {
+    id: number;
     title: string;
     description: string;
-    amount: number;
+    amount: string | number;
+    status: string;
   };
-  payments: {
+  Supplier?: {
     id: number;
-    amount: number;
-    date: string;
-    method: string;
-  }[];
+    name: string;
+    type: string;
+  };
 }
 
 export default function InvoiceDetails({ params }: { params: { id: string } }) {
+  const { id } = React.use(params as any) as { id: string };
   const router = useRouter();
-  const { token } = useToken();
+  const { token, userInfo, isLoading } = useToken();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    const fetchInvoice = async () => {
-      if (!token) return;
+    console.log('Estado inicial de autenticación:', {
+      token: !!token,
+      userInfo,
+      isLoading
+    });
+
+    if (isLoading) {
+      console.log('Cargando estado de autenticación...');
+      return;
+    }
+
+    if (!token) {
+      console.log('No se encontró token, redirigiendo a login...');
+      router.push("/login");
+      return;
+    }
+
+    if (!userInfo) {
+      console.log('No se encontró información del usuario, redirigiendo a login...');
+      router.push("/login");
+      return;
+    }
+
+    console.log('Autenticación exitosa:', {
+      role: userInfo.role,
+      email: userInfo.email
+    });
+  }, [token, userInfo, isLoading, router]);
+
+  useEffect(() => {
+    const fetchInvoiceDetails = async () => {
+      if (!token || !userInfo || isLoading) {
+        return;
+      }
 
       try {
-        const response = await fetch(`http://localhost:3040/api/invoices/${params.id}`, {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(`http://localhost:3040/api/invoices/${id}`, {
           headers: {
-            Authorization: `Bearer ${token}`,
-          },
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
 
-        if (!response.ok) throw new Error("Error al cargar la factura");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Error al obtener los detalles de la factura');
+        }
+
         const data = await response.json();
         setInvoice(data);
       } catch (error) {
-        console.error("Error:", error);
-        setError("Error al cargar la factura");
+        setError(error instanceof Error ? error.message : 'Error al cargar los detalles de la factura');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchInvoice();
-  }, [token, params.id]);
+    fetchInvoiceDetails();
+  }, [id, token, userInfo, isLoading]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -74,8 +122,68 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
 
   const calculateRemainingAmount = () => {
     if (!invoice) return 0;
-    const totalPaid = invoice.payments.reduce((acc, payment) => acc + payment.amount, 0);
-    return invoice.amount - totalPaid;
+    // Por ahora, como no tenemos payments en la estructura, retornamos el monto total
+    return Number(invoice.amount);
+  };
+
+  const formatAmount = (amount: number | string | undefined): string => {
+    if (amount === undefined || amount === null) return '$0.00';
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return isNaN(numAmount) ? '$0.00' : `$${numAmount.toFixed(2)}`;
+  };
+
+  const handleStatusUpdate = async (newStatus: 'approved' | 'rejected') => {
+    if (!token || !invoice) return;
+    
+    try {
+      setUpdating(true);
+      setError("");
+      
+      console.log('Enviando actualización de estado:', {
+        status: newStatus,
+        invoiceId: Number(id)
+      });
+      
+      const response = await fetch(`http://localhost:3040/api/invoices/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          status: newStatus,
+          // Incluir otros campos requeridos de la factura
+          number: invoice.number,
+          amount: invoice.amount,
+          budgetId: invoice.budgetId
+        }),
+      });
+
+      console.log('Respuesta del servidor:', {
+        status: response.status,
+        statusText: response.statusText
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Error al ${newStatus === 'approved' ? 'aprobar' : 'rechazar'} la factura`);
+      }
+
+      const data = await response.json();
+      
+      // Actualizar el estado local con los nuevos datos
+      setInvoice(prev => ({
+        ...prev!,
+        status: newStatus
+      }));
+      
+      alert(`Factura ${newStatus === 'approved' ? 'aprobada' : 'rechazada'} exitosamente`);
+    } catch (err) {
+      console.error("Error completo al actualizar el estado:", err);
+      setError(err instanceof Error ? err.message : "Error al actualizar el estado de la factura");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   if (loading) {
@@ -110,12 +218,14 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Detalles de la Factura</h1>
             <div className="space-x-4">
-              <Link
-                href={`/supplier/invoices/${invoice.id}/edit`}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              >
-                Editar
-              </Link>
+              {(userInfo?.role === 'proveedor' || userInfo?.role === 'supplier') && invoice?.status === 'pending' && (
+                <Link
+                  href={`/supplier/invoices/${invoice.id}/edit`}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                >
+                  Editar
+                </Link>
+              )}
               <Link
                 href="/supplier/invoices"
                 className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
@@ -135,32 +245,73 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
               </div>
             </div>
 
+            {userInfo?.role === 'admin' && invoice.status === 'pending' && (
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => handleStatusUpdate('rejected')}
+                    disabled={updating}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    {updating ? 'Procesando...' : 'Rechazar'}
+                  </button>
+                  <button
+                    onClick={() => handleStatusUpdate('approved')}
+                    disabled={updating}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    {updating ? 'Procesando...' : 'Aprobar'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="px-6 py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Presupuesto</h3>
-                  <p className="mt-1 text-gray-900">{invoice.budget.title}</p>
+                  <p className="mt-1 text-gray-900">{invoice.Budget?.title || 'No disponible'}</p>
                 </div>
 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Descripción del Presupuesto</h3>
-                  <p className="mt-1 text-gray-900">{invoice.budget.description}</p>
+                  <p className="mt-1 text-gray-900">{invoice.Budget?.description || 'No disponible'}</p>
                 </div>
+
+                {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
+                  <div className="md:col-span-2 border-t border-gray-200 pt-4 mt-4">
+                    <h3 className="text-sm font-medium text-gray-500 mb-3">Información del Proveedor</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500">Empresa</h4>
+                        <p className="text-sm text-gray-900">{invoice.Supplier?.name || 'N/A'}</p>
+                      </div>
+                      {invoice.Supplier?.type && (
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500">Tipo</h4>
+                          <p className="text-sm text-gray-900">{invoice.Supplier.type}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Monto Total</h3>
-                  <p className="mt-1 text-gray-900">${invoice.amount.toFixed(2)}</p>
+                  <p className="mt-1 text-gray-900">{formatAmount(invoice.amount)}</p>
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500">Monto Pendiente</h3>
-                  <p className="mt-1 text-gray-900">${calculateRemainingAmount().toFixed(2)}</p>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500">Fecha de Creación</h3>
+                  <h3 className="text-sm font-medium text-gray-500">Fecha de Vencimiento</h3>
                   <p className="mt-1 text-gray-900">
-                    {new Date(invoice.createdAt).toLocaleDateString()}
+                    {new Date(invoice.dueDate).toLocaleDateString()}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500">Fecha de Emisión</h3>
+                  <p className="mt-1 text-gray-900">
+                    {new Date(invoice.issueDate).toLocaleDateString()}
                   </p>
                 </div>
 
@@ -170,46 +321,15 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                     {new Date(invoice.updatedAt).toLocaleDateString()}
                   </p>
                 </div>
+
+                {invoice.notes && (
+                  <div className="md:col-span-2">
+                    <h3 className="text-sm font-medium text-gray-500">Notas</h3>
+                    <p className="mt-1 text-gray-900">{invoice.notes}</p>
+                  </div>
+                )}
               </div>
             </div>
-
-            {invoice.payments.length > 0 && (
-              <div className="px-6 py-4 border-t border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Historial de Pagos</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Fecha
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Monto
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Método
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {invoice.payments.map((payment) => (
-                        <tr key={payment.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(payment.date).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${payment.amount.toFixed(2)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {payment.method}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

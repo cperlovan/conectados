@@ -3,60 +3,64 @@ const sequelize = require('../config/database');
 
 // Definir el modelo Condominium
 const Condominium = sequelize.define('Condominium', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   name: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: false
   },
   type: {
-    type: DataTypes.ENUM('residential', 'commercial', 'industrial'),
-    allowNull: false,
+    type: DataTypes.STRING,
+    allowNull: true
   },
   rif: {
     type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
+    allowNull: true
   },
   address: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true
   },
   phone: {
     type: DataTypes.STRING,
-    allowNull: true,
+    allowNull: true
   },
   email: {
     type: DataTypes.STRING,
-    allowNull: true,
-    validate: {
-      isEmail: true,
-    },
+    allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('active', 'inactive', 'pending'),
-    defaultValue: 'pending',
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'pending'
   },
   currency: {
     type: DataTypes.STRING,
-    defaultValue: 'USD',
-    allowNull: false,
+    allowNull: true
   },
   timezone: {
     type: DataTypes.STRING,
-    defaultValue: 'UTC',
-    allowNull: false,
+    allowNull: true
   },
   description: {
     type: DataTypes.TEXT,
-    allowNull: true,
+    allowNull: true
   },
   rules: {
-    type: DataTypes.JSONB,
-    allowNull: true,
+    type: DataTypes.TEXT,
+    allowNull: true
   },
   settings: {
     type: DataTypes.JSONB,
-    allowNull: true,
+    allowNull: true
   },
+  logo: {
+    type: DataTypes.STRING,
+    allowNull: true
+  }
 }, {
   tableName: 'Condominiums',
   timestamps: true,

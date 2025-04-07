@@ -72,7 +72,7 @@ const getOwnersByCondominium = async (req, res) => {
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'name', 'email', 'status']
+          attributes: ['id', 'name', 'email', 'status', 'credit_amount']
         },
         {
           model: Property,

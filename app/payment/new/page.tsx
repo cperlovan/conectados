@@ -30,25 +30,23 @@ export default function NewPayment() {
       return;
     }
 
-    const fetchReceipt = async () => {
-      if (isLoading) return;
-      if (!token) return;
+    const loadReceipt = async () => {
+      const receiptId = searchParams.get("receiptId");
+      if (!token || !receiptId) return;
       
       try {
-        const receiptId = searchParams.get("receiptId");
-        if (!receiptId) {
-          throw new Error("ID de recibo no proporcionado");
-        }
-
-        // Usar la ruta directa para obtener un recibo específico por ID
-        const receiptData = await fetchAPI(`/receipts/${receiptId}`, { token });
-        setReceipt(receiptData);
+        setLoading(true);
+        const data = await fetchAPI(`/receipts/${receiptId}`, { token });
         
-        // Establecer el monto por defecto
-        setPaymentForm(prev => ({
-          ...prev,
-          amount: receiptData.amount.toString()
-        }));
+        if (data) {
+          setReceipt(data);
+          setPaymentForm(prev => ({
+            ...prev,
+            amount: "" // Dejamos el monto vacío inicialmente
+          }));
+        } else {
+          setError("No se encontró el recibo");
+        }
       } catch (err) {
         console.error("Error al cargar el recibo:", err);
         setError(err instanceof Error ? err.message : "Error al cargar el recibo");
@@ -57,8 +55,8 @@ export default function NewPayment() {
       }
     };
 
-    fetchReceipt();
-  }, [token, userInfo, router, searchParams, isLoading]);
+    loadReceipt();
+  }, [token, searchParams, isLoading, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -71,21 +69,19 @@ export default function NewPayment() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!token || !receipt) return;
-    
-    if (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0) {
-      toast.error("El monto debe ser mayor que cero");
+    if (!receipt) {
+      setError("No se ha cargado la información del recibo");
       return;
     }
 
-    if (!paymentForm.reference && paymentForm.method !== "cash") {
-      toast.error("Ingrese el número de referencia de la transacción");
+    const amount = parseFloat(paymentForm.amount);
+    if (isNaN(amount) || amount <= 0) {
+      setError("Por favor ingrese un monto válido");
       return;
     }
 
-    setSubmitting(true);
-    
     try {
+      setSubmitting(true);
       // Mapear los métodos de pago del formulario a los valores del backend
       let backendMethod = "bank_transfer"; // valor por defecto
       
@@ -108,7 +104,7 @@ export default function NewPayment() {
       
       const paymentData = {
         receiptId: receipt.id,
-        amount: parseFloat(paymentForm.amount),
+        amount: amount,
         method: backendMethod,
         condominiumId: receipt.property?.condominiumId || 1, // Obtener condominiumId de la propiedad
         userId: userInfo?.id || 0, // Usar el ID del usuario actual
@@ -124,7 +120,7 @@ export default function NewPayment() {
       console.log("Enviando datos de pago:", paymentData);
 
       const result = await fetchAPI("/payments", {
-        token,
+        token: token ?? undefined,
         method: "POST",
         body: paymentData
       });
@@ -250,7 +246,17 @@ export default function NewPayment() {
                           </>
                         ) : 'N/A'}
                       </p>
-                      <p className="font-medium text-blue-800 mt-2">Monto a pagar: {formatCurrency(receipt.amount)}</p>
+                      <p className="font-medium text-blue-800 mt-2">
+                        Monto total: {formatCurrency(receipt.amount)}
+                      </p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Monto pendiente: {formatCurrency(receipt.pending_amount || receipt.amount)}
+                      </p>
+                      {receipt.credit_balance !== null && receipt.credit_balance !== undefined && receipt.credit_balance > 0 && (
+                        <p className="text-sm text-green-600 mt-1">
+                          Crédito disponible: {formatCurrency(receipt.credit_balance)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -279,7 +285,12 @@ export default function NewPayment() {
                       />
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
-                      El monto debe ser igual al total del recibo.
+                      Monto pendiente: {formatCurrency(receipt?.pending_amount || 0)}
+                      {receipt?.credit_balance !== null && receipt?.credit_balance !== undefined && receipt.credit_balance > 0 && (
+                        <span className="text-green-600 ml-2">
+                          (Crédito disponible: {formatCurrency(receipt.credit_balance)})
+                        </span>
+                      )}
                     </p>
                   </div>
 

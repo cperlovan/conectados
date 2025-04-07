@@ -5,81 +5,142 @@ import { useRouter } from "next/navigation";
 import { useToken } from "../../hook/useToken";
 import Header from "../../components/Header";
 import Link from "next/link";
+import Image from 'next/image';
 
 interface Invoice {
   id: number;
-  budgetId: number;
   number: string;
-  amount: number | string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
+  budgetId: number;
+  supplierId: number;
+  amount: number;
+  status: 'pending' | 'paid' | 'cancelled';
+  issueDate: string;
+  dueDate: string;
+  description: string;
   budget?: {
-    title: string;
+    id: number;
+    description: string;
+    amount: number;
   };
+  supplier?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface Stats {
+  total: number;
+  pending: number;
+  paid: number;
+  cancelled: number;
 }
 
 export default function InvoicesList() {
   const router = useRouter();
-  const { token, userInfo } = useToken();
+  const { token, userInfo, isLoading } = useToken();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, paid: 0, cancelled: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Está seguro de que desea eliminar esta factura?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3040/api/invoices/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al eliminar la factura');
+      }
+
+      setInvoices(invoices.filter(invoice => invoice.id !== id));
+      alert('Factura eliminada exitosamente');
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error instanceof Error ? error.message : 'Error al eliminar la factura');
+    }
+  };
+
   useEffect(() => {
     const fetchInvoices = async () => {
-      if (!token || !userInfo) {
-        setLoading(false);
+      if (!token || !userInfo || isLoading) {
         return;
       }
 
       try {
-        // Primero obtener el ID del proveedor asociado al usuario
-        const supplierResponse = await fetch(
-          `http://localhost:3040/api/suppliers/user/${userInfo.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        setLoading(true);
+        setError("");
+        let endpoint = '';
 
-        if (!supplierResponse.ok) {
-          throw new Error("Error al obtener el perfil de proveedor");
+        if (userInfo?.role === 'admin' || userInfo?.role === 'superadmin') {
+          if (!userInfo.condominiumId) {
+            throw new Error('No se encontró el ID del condominio');
+          }
+          endpoint = `http://localhost:3040/api/invoices/condominium/${userInfo.condominiumId}`;
+        } else if (userInfo?.role === 'proveedor') {
+          try {
+            const supplierResponse = await fetch(
+              `http://localhost:3040/api/suppliers/user/${userInfo.id}`,
+              {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+
+            if (!supplierResponse.ok) {
+              const errorData = await supplierResponse.json().catch(() => ({}));
+              throw new Error(errorData.message || 'Error al obtener información del proveedor');
+            }
+
+            const supplierData = await supplierResponse.json();
+
+            if (!supplierData?.id) {
+              throw new Error('No se encontró el ID del proveedor');
+            }
+
+            endpoint = `http://localhost:3040/api/invoices/supplier/${supplierData.id}`;
+          } catch (supplierError) {
+            throw supplierError;
+          }
+        } else {
+          throw new Error('Rol no autorizado');
         }
 
-        const supplierData = await supplierResponse.json();
-        console.log("Datos del proveedor:", supplierData);
-
-        // Luego obtener las facturas del proveedor
-        const invoicesResponse = await fetch(
-          `http://localhost:3040/api/invoices/supplier/${supplierData.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
+        const response = await fetch(endpoint, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
-        );
+        });
 
-        if (!invoicesResponse.ok) {
-          throw new Error("Error al cargar facturas");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Error al obtener las facturas');
         }
-        
-        const data = await invoicesResponse.json();
-        console.log("Facturas recibidas:", data);
-        setInvoices(data);
+
+        const data = await response.json();
+        setInvoices(data.invoices);
+        setStats(data.stats);
       } catch (error) {
-        console.error("Error:", error);
-        setError("Error al cargar las facturas");
+        setError(error instanceof Error ? error.message : 'Error al cargar las facturas');
       } finally {
         setLoading(false);
       }
     };
 
     fetchInvoices();
-  }, [token, userInfo]);
+  }, [token, userInfo, isLoading]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -94,12 +155,9 @@ export default function InvoicesList() {
     }
   };
 
-  // Función para formatear el monto
   const formatAmount = (amount: number | string): string => {
-    // Convertir a número si es un string
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     
-    // Verificar si es un número válido
     if (isNaN(numAmount)) {
       return '0.00';
     }
@@ -107,12 +165,15 @@ export default function InvoicesList() {
     return numAmount.toFixed(2);
   };
 
-  if (loading) {
+  if (isLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-100">
         <Header />
         <div className="container mx-auto px-4 py-8">
-          <div className="text-center">Cargando...</div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto mb-4"></div>
+            <p className="text-gray-600">Cargando...</p>
+          </div>
         </div>
       </div>
     );
@@ -124,12 +185,34 @@ export default function InvoicesList() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Facturas</h1>
-          <Link
-            href="/supplier/invoices/new"
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Nueva Factura
-          </Link>
+          {(userInfo?.role === 'proveedor' || userInfo?.role === 'supplier') && (
+            <Link
+              href="/supplier/invoices/new"
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              Nueva Factura
+            </Link>
+          )}
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white p-4 rounded shadow">
+            <h3 className="text-lg font-semibold">Total</h3>
+            <p className="text-2xl">{stats.total}</p>
+          </div>
+          <div className="bg-yellow-100 p-4 rounded shadow">
+            <h3 className="text-lg font-semibold">Pendientes</h3>
+            <p className="text-2xl">{stats.pending}</p>
+          </div>
+          <div className="bg-green-100 p-4 rounded shadow">
+            <h3 className="text-lg font-semibold">Pagadas</h3>
+            <p className="text-2xl">{stats.paid}</p>
+          </div>
+          <div className="bg-red-100 p-4 rounded shadow">
+            <h3 className="text-lg font-semibold">Canceladas</h3>
+            <p className="text-2xl">{stats.cancelled}</p>
+          </div>
         </div>
 
         {error && (
@@ -141,6 +224,14 @@ export default function InvoicesList() {
         {invoices.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-6 text-center">
             <p className="text-gray-600">No hay facturas creadas</p>
+            {userInfo?.role === 'proveedor' && (
+              <Link
+                href="/supplier/invoices/new"
+                className="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+              >
+                Crear Primera Factura
+              </Link>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -153,6 +244,11 @@ export default function InvoicesList() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Presupuesto
                   </th>
+                  {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Proveedor
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Monto
                   </th>
@@ -175,9 +271,16 @@ export default function InvoicesList() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
-                        {invoice.budget?.title || `Presupuesto #${invoice.budgetId}`}
+                        {invoice.budget?.description || `Presupuesto #${invoice.budgetId}`}
                       </div>
                     </td>
+                    {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          {invoice.supplier?.name || 'N/A'}
+                        </div>
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">${formatAmount(invoice.amount)}</div>
                     </td>
@@ -187,21 +290,39 @@ export default function InvoicesList() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(invoice.createdAt).toLocaleDateString()}
+                      {new Date(invoice.issueDate).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link
-                        href={`/supplier/invoices/${invoice.id}`}
-                        className="text-green-600 hover:text-green-900 mr-4"
-                      >
-                        Ver
-                      </Link>
-                      <Link
-                        href={`/supplier/invoices/${invoice.id}/edit`}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Editar
-                      </Link>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center space-x-3">
+                        <Link
+                          href={`/supplier/invoices/${invoice.id}`}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Ver
+                        </Link>
+                        {userInfo?.role === 'proveedor' && invoice.status === 'pending' && (
+                          <>
+                            <Link
+                              href={`/supplier/invoices/${invoice.id}/edit`}
+                              className="text-yellow-600 hover:text-yellow-900"
+                            >
+                              Editar
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(invoice.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Eliminar
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => window.open(`/supplier/invoices/${invoice.id}/print`, '_blank')}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          Imprimir
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

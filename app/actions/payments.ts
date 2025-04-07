@@ -1,6 +1,8 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { revalidatePath } from 'next/cache'
+import { Payment, PaymentStatus, PaymentUpdateResponse } from '../types/payment'
 
 // URL base para las peticiones API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3040/api'
@@ -10,10 +12,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3040/a
  */
 async function getTokenFromCookies() {
   try {
-    return cookies().get('token')?.value || '';
+    const cookieStore = await cookies()
+    return cookieStore.get('token')?.value || ''
   } catch (error) {
-    console.error('Error al obtener token de cookies:', error);
-    return '';
+    console.error('Error al obtener token de cookies:', error)
+    return ''
   }
 }
 
@@ -22,65 +25,109 @@ async function getTokenFromCookies() {
  * Esta función se ejecuta en el servidor, lo que garantiza que la actualización
  * se realice correctamente incluso si el cliente tiene problemas
  */
-export async function updatePaymentStatusServer(
-  paymentId: number, 
-  newStatus: string
-) {
+export async function updatePaymentStatus(paymentId: number, newStatus: PaymentStatus): Promise<PaymentUpdateResponse> {
   try {
-    // Obtener el token de las cookies
-    const token = await getTokenFromCookies();
-    
+    const cookieStore = await cookies()
+    const token = cookieStore.get('token')?.value
+
     if (!token) {
-      return { success: false, error: 'No estás autenticado' }
+      throw new Error('No autorizado')
     }
-    
-    console.log(`[Server Action] Actualizando estado del pago ${paymentId} a ${newStatus}`)
-    
-    // Realizar la petición al backend desde el servidor
-    const response = await fetch(`${API_BASE_URL}/payments/${paymentId}`, {
+
+    // 1. Obtener el pago actual
+    const getPaymentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/${paymentId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!getPaymentResponse.ok) {
+      throw new Error('Error al obtener información del pago')
+    }
+
+    const currentPayment: Payment = await getPaymentResponse.json()
+
+    // 2. Actualizar el estado del pago
+    const updatePaymentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/${paymentId}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ status: newStatus }),
-      // No cacheamos esta respuesta
-      cache: 'no-store'
+      body: JSON.stringify({
+        ...currentPayment,
+        status: newStatus
+      })
     })
-    
-    // Verificar si la respuesta fue exitosa
-    if (!response.ok) {
-      const text = await response.text()
-      console.error(`[Server Action] Error al actualizar el pago ${paymentId}:`, text)
-      return { 
-        success: false, 
-        error: `Error del servidor: ${response.status} ${response.statusText}`
+
+    if (!updatePaymentResponse.ok) {
+      throw new Error('Error al actualizar el estado del pago')
+    }
+
+    const updatedPayment: Payment = await updatePaymentResponse.json()
+
+    // 3. Actualizar el recibo si es necesario
+    if (currentPayment.receiptId) {
+      const receiptResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/receipts/${currentPayment.receiptId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!receiptResponse.ok) {
+        throw new Error('Error al obtener información del recibo')
+      }
+
+      const receipt = await receiptResponse.json()
+      
+      // Calcular montos pendientes y créditos
+      const totalPaid = updatedPayment.amount
+      const expectedAmount = receipt.amount
+      const currentPendingAmount = receipt.pending_amount || receipt.amount
+      
+      // Si es el primer pago, usar el monto total del recibo
+      // Si es un pago subsecuente, usar el monto pendiente actual
+      const newPendingAmount = currentPendingAmount - totalPaid
+      const hasCredit = newPendingAmount < 0
+
+      // Actualizar el estado del recibo y los montos
+      const receiptUpdate = {
+        ...receipt,
+        status: newStatus === 'verified' 
+          ? (newPendingAmount <= 0 ? 'paid' : 'partial')
+          : receipt.status,
+        pending_amount: hasCredit ? 0 : newPendingAmount,
+        credit_balance: hasCredit ? Math.abs(newPendingAmount) : 0
+      }
+
+      const updateReceiptResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/receipts/${currentPayment.receiptId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(receiptUpdate)
+      })
+
+      if (!updateReceiptResponse.ok) {
+        throw new Error('Error al actualizar el estado del recibo')
       }
     }
     
-    // Procesar la respuesta
-    const data = await response.json()
+    // Revalidar las rutas
+    revalidatePath('/admin/payments/[id]')
+    revalidatePath('/admin/payments')
+    revalidatePath('/owner/payments')
+    revalidatePath(`/admin/payment/${paymentId}`)
     
-    console.log(`[Server Action] Actualización exitosa del pago ${paymentId}:`, data)
-    
-    // Verificar que el estado se actualizó correctamente
-    if (data.status !== newStatus) {
-      return { 
-        success: false, 
-        error: `El servidor no actualizó el estado. Estado actual: ${data.status}`,
-        payment: data
-      }
-    }
-    
-    return {
-      success: true,
-      payment: data
-    }
+    return { success: true, payment: updatedPayment }
   } catch (error) {
-    console.error('[Server Action] Error en updatePaymentStatusServer:', error)
+    console.error('Error:', error)
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Error desconocido'
+      error: error instanceof Error ? error.message : 'Error desconocido al actualizar el pago'
     }
   }
 }

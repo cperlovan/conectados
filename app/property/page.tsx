@@ -5,6 +5,30 @@ import jwtDecode from "jwt-decode";
 import { useToken } from "../hook/useToken";
 import { useRouter } from "next/navigation";
 import Header from "../components/Header";
+import { 
+  FiEdit2, 
+  FiTrash2, 
+  FiPlus, 
+  FiFilter, 
+  FiChevronDown, 
+  FiChevronUp, 
+  FiList, 
+  FiGrid,
+  FiColumns,
+  FiHome,
+  FiUser,
+  FiPercent
+} from 'react-icons/fi';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 // Interfaz para el usuario
 interface User {
@@ -73,15 +97,36 @@ const Page = () => {
     role: "copropietario",
   });
   const [isEditMode] = useState(false);
-  const [currentPage] = useState(1);
-  const [rowsPerPage ] = useState(5);
-  const [searchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    type: "all",
+    status: "all",
+    block: "all"
+  });
   const [totalRows, setTotalRows] = useState<number>(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [properties, setProperties] = useState<Property[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' | null }>({
+    key: '',
+    direction: null,
+  });
+
+  // Add state for column visibility
+  const [visibleColumns, setVisibleColumns] = useState({
+    number: true,
+    type: true,
+    status: true,
+    aliquot: true,
+    block: true,
+    floor: true,
+    owner: true,
+    actions: true
+  });
 
   // Obtener el token de las cookies
   const { token, isLoading: tokenLoading, userInfo } = useToken();
@@ -366,6 +411,132 @@ const Page = () => {
     }
   };
 
+  // Add function to toggle column visibility
+  const toggleColumnVisibility = (columnId: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [columnId]: !prev[columnId]
+    }));
+  };
+
+  // Add sorting function
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' | null = 'asc';
+    
+    if (sortConfig.key === key) {
+      if (sortConfig.direction === 'asc') {
+        direction = 'desc';
+      } else if (sortConfig.direction === 'desc') {
+        direction = null;
+      }
+    }
+
+    setSortConfig({ key, direction });
+  };
+
+  const sortData = (data: Property[]) => {
+    if (!sortConfig.key || !sortConfig.direction) {
+      return data;
+    }
+
+    return [...data].sort((a, b) => {
+      let aValue: any = a[sortConfig.key as keyof Property] || '';
+      let bValue: any = b[sortConfig.key as keyof Property] || '';
+
+      // Manejar casos especiales
+      if (sortConfig.key === 'owner') {
+        aValue = a.owner?.fullName || a.owner?.user?.name || '';
+        bValue = b.owner?.fullName || b.owner?.user?.name || '';
+      }
+
+      if (sortConfig.direction === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      }
+      return aValue < bValue ? 1 : -1;
+    });
+  };
+
+  // Obtener valores únicos para los filtros
+  const uniqueTypes = Array.from(new Set(properties.map(p => p.type)));
+  const uniqueBlocks = Array.from(new Set(properties.map(p => p.block).filter(Boolean)));
+  const uniqueStatuses = Array.from(new Set(properties.map(p => p.status)));
+
+  // Función para manejar cambios en los filtros
+  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+    setCurrentPage(1); // Resetear a la primera página cuando se cambian los filtros
+  };
+
+  // Función para filtrar propiedades
+  const getFilteredProperties = () => {
+    return properties.filter(property => {
+      // Aplicar filtros de búsqueda
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        property.number.toLowerCase().includes(searchLower) ||
+        property.type.toLowerCase().includes(searchLower) ||
+        (property.block?.toLowerCase() || '').includes(searchLower) ||
+        (property.owner?.user?.name?.toLowerCase() || '').includes(searchLower) ||
+        (property.owner?.user?.email?.toLowerCase() || '').includes(searchLower);
+
+      // Aplicar filtros de selección
+      const matchesType = filters.type === "all" || property.type === filters.type;
+      const matchesStatus = filters.status === "all" || property.status === filters.status;
+      const matchesBlock = filters.block === "all" || property.block === filters.block;
+
+      return matchesSearch && matchesType && matchesStatus && matchesBlock;
+    });
+  };
+
+  // Función para ordenar propiedades
+  const getSortedProperties = (filteredProperties: Property[]) => {
+    if (!sortConfig.key || !sortConfig.direction) {
+      return filteredProperties;
+    }
+
+    return [...filteredProperties].sort((a, b) => {
+      let aValue = a[sortConfig.key as keyof Property];
+      let bValue = b[sortConfig.key as keyof Property];
+
+      // Manejar casos especiales
+      if (sortConfig.key === 'owner') {
+        aValue = a.owner?.user?.name || '';
+        bValue = b.owner?.user?.name || '';
+      }
+
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+
+      if (sortConfig.direction === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      }
+      return aValue < bValue ? 1 : -1;
+    });
+  };
+
+  // Obtener propiedades filtradas y ordenadas
+  const filteredProperties = getFilteredProperties();
+  const sortedProperties = getSortedProperties(filteredProperties);
+  
+  // Calcular propiedades paginadas
+  const paginatedProperties = sortedProperties.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
+  // Calcular total de páginas
+  const totalPages = Math.ceil(filteredProperties.length / rowsPerPage);
+
+  // Función para cambiar de página
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -470,263 +641,444 @@ const Page = () => {
     <div className="min-h-screen bg-gray-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        {/* Mensaje de error */}
-        {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-lg font-medium">Error</p>
-                <p className="text-sm">{error}</p>
-                <div className="mt-2">
-                  <button 
-                    onClick={() => setError("")} 
-                    className="text-sm font-medium text-red-700 hover:text-red-600 underline"
-                  >
-                    Cerrar
-                  </button>
-                </div>
+        <div className="bg-white shadow-md rounded-lg p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Lista de Propiedades</h1>
+              <div className="text-gray-500 text-sm">
+                Total: <span className="font-medium">{filteredProperties.length}</span> propiedades
               </div>
             </div>
-          </div>
-        )}
 
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="text-xl font-semibold">Cargando...</div>
+            <div className="mt-4 md:mt-0 flex items-center space-x-2">
+              <Button
+                onClick={() => router.push('/property/assign-quotas')}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <FiPercent className="mr-2" />
+                Editar Alícuotas
+              </Button>
+              <Button
+                onClick={() => router.push("/property/register")}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <FiPlus className="mr-2" />
+                Nueva Propiedad
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <FiColumns className="mr-2" />
+                    Columnas
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuLabel>Mostrar columnas</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {Object.entries(visibleColumns).map(([key, value]) => (
+                    <DropdownMenuCheckboxItem
+                      key={key}
+                      checked={value}
+                      onCheckedChange={() => toggleColumnVisibility(key as keyof typeof visibleColumns)}
+                    >
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        ) : (
-          <>
-            <div className="mb-6 flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0">
+
+          {/* Filtros y Búsqueda */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center mb-3">
+              <FiFilter className="text-gray-500 mr-2" />
+              <h2 className="text-lg font-medium">Filtros</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* Campo de búsqueda */}
+              <div className="lg:col-span-2">
+                <input
+                  type="text"
+                  placeholder="Buscar por número, tipo, bloque o propietario..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Filtro por tipo */}
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">
-                  Propiedades
-                </h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  Total: {properties.length} {properties.length === 1 ? 'propiedad' : 'propiedades'}
-                </p>
+                <select
+                  value={filters.type}
+                  onChange={(e) => handleFilterChange('type', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">Todos los tipos</option>
+                  {uniqueTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
               </div>
-              
-              <div className="flex space-x-2">
+
+              {/* Filtro por estado */}
+              <div>
+                <select
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">Todos los estados</option>
+                  {uniqueStatuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro por bloque */}
+              <div>
+                <select
+                  value={filters.block}
+                  onChange={(e) => handleFilterChange('block', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">Todos los bloques</option>
+                  {uniqueBlocks.map(block => (
+                    <option key={block} value={block}>{block}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Vista y Paginación */}
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
+            <div className="flex items-center space-x-2 mb-4 sm:mb-0">
+              <span className="text-sm text-gray-600">Vista:</span>
+              <div className="flex bg-gray-100 p-1 rounded-lg">
                 <button
-                  onClick={() => handleViewModeChange('cards')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'cards' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  onClick={() => setViewMode('list')}
+                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                    viewMode === 'list'
+                      ? 'bg-white shadow-sm text-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                  Tarjetas
+                  <FiList className="mr-1" />
+                  <span>Lista</span>
                 </button>
                 <button
-                  onClick={() => handleViewModeChange('list')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'list' 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  onClick={() => setViewMode('cards')}
+                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                    viewMode === 'cards'
+                      ? 'bg-white shadow-sm text-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                  </svg>
-                  Lista
-                </button>
-                <button
-                  onClick={() => router.push('/property/assign-quotas')}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                  </svg>
-                  Editar Alícuotas
-                </button>
-                <button
-                  onClick={() => router.push('/property/register')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                  Nueva Propiedad
+                  <FiGrid className="mr-1" />
+                  <span>Tarjetas</span>
                 </button>
               </div>
             </div>
 
-            {properties.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                <p className="text-gray-500">No hay propiedades disponibles para mostrar.</p>
-              </div>
-            ) : (
-              <div className={`transition-opacity duration-300 ${loading ? 'opacity-0' : 'opacity-100'}`}>
-                {viewMode === 'cards' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {properties.map((property) => (
-                      <div key={property.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                        <div className="px-6 py-4">
-                          <div className="font-bold text-xl mb-2">Propiedad: {property.number}</div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <p className="text-gray-700 text-sm">
-                              <span className="font-semibold">Tipo:</span> {property.type === 'apartment' ? 'Apartamento' : property.type}
-                            </p>
-                            <p className="text-gray-700 text-sm">
-                              <span className="font-semibold">Alícuota:</span> {property.aliquot}%
-                            </p>
-                            {property.block && (
-                              <p className="text-gray-700 text-sm">
-                                <span className="font-semibold">Bloque:</span> {property.block}
-                              </p>
-                            )}
-                            {property.floor && (
-                              <p className="text-gray-700 text-sm">
-                                <span className="font-semibold">Piso:</span> {property.floor}
-                              </p>
-                            )}
-                            <p className="text-gray-700 text-sm">
-                              <span className="font-semibold">Estado:</span>{" "}
-                              <span
-                                className={`${
-                                  property.status === "occupied" 
-                                    ? "text-green-600" 
-                                    : "text-red-600"
-                                }`}
-                              >
-                                {property.status === "occupied" ? "Ocupado" : "Vacante"}
-                              </span>
-                            </p>
-                          </div>
-                          
-                          <div className="mt-4 pt-3 border-t border-gray-200">
-                            <p className="text-gray-700 text-sm font-semibold mb-1">Propietario:</p>
-                            {property.owner ? (
-                              <div className="pl-2">
-                                <p className="text-gray-700 text-sm">{property.owner.fullName || "No especificado"}</p>
-                                {property.owner.user?.email && (
-                                  <p className="text-gray-700 text-sm">
-                                    <span className="font-semibold">Email:</span> {property.owner.user.email}
-                                  </p>
-                                )}
-                                {property.owner.documentId && (
-                                  <p className="text-gray-700 text-sm">
-                                    <span className="font-semibold">Documento:</span> {property.owner.documentType} {property.owner.documentId}
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-gray-500 text-sm pl-2">Sin propietario asignado</p>
-                            )}
-                          </div>
+            <div className="flex items-center space-x-2">
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value={5}>5 por página</option>
+                <option value={10}>10 por página</option>
+                <option value={20}>20 por página</option>
+                <option value={50}>50 por página</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Lista de Propiedades */}
+          {viewMode === 'list' ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {visibleColumns.number && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('number')}
+                      >
+                        <div className="flex items-center">
+                          <span>Número</span>
+                          {sortConfig.key === 'number' && (
+                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                          )}
                         </div>
-                        <div className="px-6 py-4 bg-gray-50 border-t flex justify-between items-center">
-                          <span className="text-xs text-gray-500">
-                            ID: {property.id}
+                      </th>
+                    )}
+                    {visibleColumns.type && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('type')}
+                      >
+                        <div className="flex items-center">
+                          <span>Tipo</span>
+                          {sortConfig.key === 'type' && (
+                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                          )}
+                        </div>
+                      </th>
+                    )}
+                    {visibleColumns.status && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('status')}
+                      >
+                        <div className="flex items-center">
+                          <span>Estado</span>
+                          {sortConfig.key === 'status' && (
+                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                          )}
+                        </div>
+                      </th>
+                    )}
+                    {visibleColumns.aliquot && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('aliquot')}
+                      >
+                        <div className="flex items-center">
+                          <span>Alícuota</span>
+                          {sortConfig.key === 'aliquot' && (
+                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                          )}
+                        </div>
+                      </th>
+                    )}
+                    {visibleColumns.block && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('block')}
+                      >
+                        <div className="flex items-center">
+                          <span>Bloque</span>
+                          {sortConfig.key === 'block' && (
+                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                          )}
+                        </div>
+                      </th>
+                    )}
+                    {visibleColumns.floor && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('floor')}
+                      >
+                        <div className="flex items-center">
+                          <span>Piso</span>
+                          {sortConfig.key === 'floor' && (
+                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                          )}
+                        </div>
+                      </th>
+                    )}
+                    {visibleColumns.owner && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('owner')}
+                      >
+                        <div className="flex items-center">
+                          <span>Propietario</span>
+                          {sortConfig.key === 'owner' && (
+                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                          )}
+                        </div>
+                      </th>
+                    )}
+                    {visibleColumns.actions && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('actions')}
+                      >
+                        <div className="flex items-center">
+                          <span>Acciones</span>
+                          {sortConfig.key === 'actions' && (
+                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                          )}
+                        </div>
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedProperties.map((property) => (
+                    <tr key={property.id} className="hover:bg-gray-50">
+                      {visibleColumns.number && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {property.number}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.type && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{property.type === 'apartment' ? 'Apartamento' : property.type}</div>
+                        </td>
+                      )}
+                      {visibleColumns.status && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            property.status === "occupied" 
+                              ? "bg-green-100 text-green-800" 
+                              : "bg-red-100 text-red-800"
+                          }`}>
+                            {property.status === "occupied" ? "Ocupado" : "Vacante"}
                           </span>
+                        </td>
+                      )}
+                      {visibleColumns.aliquot && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{property.aliquot}%</div>
+                        </td>
+                      )}
+                      {visibleColumns.block && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {property.block && <span>Bloque: {property.block}</span>}
+                            {property.block && property.floor && <span> | </span>}
+                            {property.floor && <span>Piso: {property.floor}</span>}
+                            {!property.block && !property.floor && <span>-</span>}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.floor && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {property.floor && <span>Piso: {property.floor}</span>}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.owner && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {property.owner ? (
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{property.owner.fullName || "Sin nombre"}</div>
+                              {property.owner.user?.email && (
+                                <div className="text-xs text-gray-500">{property.owner.user.email}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500">Sin propietario asignado</div>
+                          )}
+                        </td>
+                      )}
+                      {visibleColumns.actions && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleEdit(property.id)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-md text-sm"
+                              className="text-blue-600 hover:text-blue-900"
                             >
                               Editar
                             </button>
                             <button
                               onClick={() => handleDelete(property.id)}
-                              className="bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded-md text-sm"
+                              className="text-red-600 hover:text-red-900"
                             >
                               Eliminar
                             </button>
                           </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginatedProperties.map((property) => (
+                <div key={property.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex flex-col">
+                      <div className="font-bold text-xl text-gray-800">
+                        {property.type} {property.number}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {property.block && `Bloque ${property.block}`}
+                        {property.floor && ` • Piso ${property.floor}`}
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      property.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {property.status === 'active' ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">
+                      <div className="flex items-center mb-3">
+                        <FiHome className="text-gray-400 mr-2" />
+                        <span className="font-medium">Alícuota:</span>
+                        <span className="ml-2">{property.aliquot}%</span>
+                      </div>
+                    </div>
+
+                    {property.owner && (
+                      <div className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">
+                        <div className="flex items-center">
+                          <FiUser className="text-gray-400 mr-2" />
+                          <span className="font-medium">Propietario:</span>
+                          <span className="ml-2">
+                            {property.owner.fullName || property.owner.user?.name || 'Sin asignar'}
+                          </span>
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
-                ) : (
-                  <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Propiedad</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bloque/Piso</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alícuota</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Propietario</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {properties.map((property) => (
-                          <tr key={property.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{property.number}</div>
-                              <div className="text-xs text-gray-500">ID: {property.id}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{property.type === 'apartment' ? 'Apartamento' : property.type}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {property.block && <span>Bloque: {property.block}</span>}
-                                {property.block && property.floor && <span> | </span>}
-                                {property.floor && <span>Piso: {property.floor}</span>}
-                                {!property.block && !property.floor && <span>-</span>}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{property.aliquot}%</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                property.status === "occupied" 
-                                  ? "bg-green-100 text-green-800" 
-                                  : "bg-red-100 text-red-800"
-                              }`}>
-                                {property.status === "occupied" ? "Ocupado" : "Vacante"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {property.owner ? (
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">{property.owner.fullName || "Sin nombre"}</div>
-                                  {property.owner.user?.email && (
-                                    <div className="text-xs text-gray-500">{property.owner.user.email}</div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="text-sm text-gray-500">Sin propietario asignado</div>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => handleEdit(property.id)}
-                                  className="text-blue-600 hover:text-blue-900"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(property.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Paginación */}
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center">
+              <span className="text-sm text-gray-700">
+                Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, filteredProperties.length)} de {filteredProperties.length} resultados
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
+              >
+                Anterior
+              </button>
+              <span className="px-3 py-1">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

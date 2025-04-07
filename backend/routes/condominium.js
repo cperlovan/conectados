@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { getAllCondominiums, createCondominium, registerCondominiumWithAdmin } = require('../controllers/CondominiumController');
+const { getAllCondominiums, createCondominium, registerCondominiumWithAdmin, getCondominiumsForSelector, selectorRateLimit } = require('../controllers/CondominiumController');
+
+// Ruta segura para el selector de condominios
+router.get('/selector', selectorRateLimit, getCondominiumsForSelector);
 
 // Obtener todos los condominios
 router.get('/', getAllCondominiums);

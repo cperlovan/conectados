@@ -3,6 +3,12 @@ const router = express.Router();
 const ownerController = require('../controllers/OwnerController');
 const authenticateToken = require('../middleware/authMiddleware');
 
+// Ruta para buscar propietarios
+router.get('/search', authenticateToken, ownerController.searchOwners);
+
+// Ruta para obtener propietarios por condominio
+router.get('/condominium/:condominiumId', authenticateToken, ownerController.getOwnersByCondominium);
+
 // Ruta para obtener un propietario por ID de usuario
 router.get('/user/:userId', authenticateToken, ownerController.getOwnerByUserId);
 
@@ -20,11 +26,5 @@ router.put('/:id', authenticateToken, ownerController.updateOwnerById);
 
 // Ruta para eliminar un propietario
 router.delete('/:id', authenticateToken, ownerController.deleteOwner);
-
-// Ruta para obtener propietarios por condominio
-router.get('/condominium/:condominiumId', authenticateToken, ownerController.getOwnersByCondominium);
-
-// Ruta para buscar propietarios
-router.get('/search', authenticateToken, ownerController.searchOwners);
 
 module.exports = router; 

@@ -1,10 +1,47 @@
-
 const Condominium = require('../models/Condominium');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const sequelize = require('../config/database');
 const jwt = require("jsonwebtoken");
+const rateLimit = require('express-rate-limit');
 require("dotenv").config();
+
+// Rate limiter para el selector: 100 requests por IP cada 15 minutos
+exports.selectorRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Demasiadas solicitudes desde esta IP, por favor intente más tarde.'
+});
+
+// Obtener condominios para el selector (endpoint seguro)
+exports.getCondominiumsForSelector = async (req, res) => {
+  try {
+    const condominiums = await Condominium.findAll({
+      attributes: ['id', 'name', 'status', 'logo'],
+      order: [['name', 'ASC']]
+    });
+
+    // Transformar y validar los datos
+    const transformedCondominiums = condominiums.map(condo => ({
+      id: condo.id,
+      name: condo.name,
+      status: condo.status?.toLowerCase() === 'active' ? 'active' :
+              condo.status?.toLowerCase() === 'inactive' ? 'inactive' : 'pending',
+      logo: condo.logo || null
+    }));
+
+    // Configurar headers de caché
+    res.set('Cache-Control', 'public, max-age=300'); // Cache por 5 minutos
+
+    res.status(200).json(transformedCondominiums);
+  } catch (error) {
+    console.error('Error al obtener condominios para selector:', error);
+    res.status(500).json({ 
+      message: 'Error al obtener los condominios',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
 
 // Obtener todos los condominios
 exports.getAllCondominiums = async (req, res) => {
@@ -122,6 +159,10 @@ const publicRoutes = [
   {
     path: "^/api/condominium/register-with-admin/?$",
     method: "POST"
+  },
+  {
+    path: "^/api/condominium/selector/?$",
+    method: "GET"
   }
 ];
 

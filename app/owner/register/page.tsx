@@ -255,189 +255,222 @@ export default function RegisterOwner() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <Header />
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto bg-white shadow-md rounded-lg p-6">
-          <h1 className="text-2xl font-bold text-center text-gray-800 mb-6">Registro de Propietario</h1>
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-xl p-8">
+          <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">
+            Registro de Propietario
+          </h1>
           
           {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 rounded-md p-4">
-              {error}
+            <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm">{error}</p>
+                </div>
+              </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-                  Nombre Completo
-                </label>
-                <input
-                  type="text"
-                  id="fullName"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Información Personal */}
+            <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">Información Personal</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+                    Nombre Completo
+                  </label>
+                  <input
+                    type="text"
+                    id="fullName"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese nombre completo"
+                  />
+                </div>
 
-              <div>
-                <label htmlFor="documentType" className="block text-sm font-medium text-gray-700">
-                  Tipo de Documento
-                </label>
-                <select
-                  id="documentType"
-                  name="documentType"
-                  value={formData.documentType}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                >
-                  <option value="dni">DNI</option>
-                  <option value="passport">Pasaporte</option>
-                  <option value="foreign_id">ID Extranjero</option>
-                </select>
-              </div>
+                <div className="space-y-2">
+                  <label htmlFor="documentType" className="block text-sm font-medium text-gray-700">
+                    Tipo de Documento
+                  </label>
+                  <select
+                    id="documentType"
+                    name="documentType"
+                    value={formData.documentType}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                  >
+                    <option value="dni">DNI</option>
+                    <option value="passport">Pasaporte</option>
+                    <option value="foreign_id">ID Extranjero</option>
+                  </select>
+                </div>
 
-              <div>
-                <label htmlFor="documentId" className="block text-sm font-medium text-gray-700">
-                  Número de Documento
-                </label>
-                <input
-                  type="text"
-                  id="documentId"
-                  name="documentId"
-                  value={formData.documentId}
-                  onChange={handleChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                />
-              </div>
+                <div className="space-y-2">
+                  <label htmlFor="documentId" className="block text-sm font-medium text-gray-700">
+                    Número de Documento
+                  </label>
+                  <input
+                    type="text"
+                    id="documentId"
+                    name="documentId"
+                    value={formData.documentId}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese número de documento"
+                  />
+                </div>
 
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                  Dirección
-                </label>
-                <input
-                  type="text"
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                />
+                <div className="space-y-2">
+                  <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                    Dirección
+                  </label>
+                  <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese dirección"
+                  />
+                </div>
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                  Teléfono Fijo
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                />
+            {/* Información de Contacto */}
+            <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">Información de Contacto</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                    Teléfono Fijo
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese teléfono fijo"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="mobile" className="block text-sm font-medium text-gray-700">
+                    Teléfono Móvil
+                  </label>
+                  <input
+                    type="tel"
+                    id="mobile"
+                    name="mobile"
+                    value={formData.mobile}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese teléfono móvil"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="emergencyContact" className="block text-sm font-medium text-gray-700">
+                    Contacto de Emergencia
+                  </label>
+                  <input
+                    type="text"
+                    id="emergencyContact"
+                    name="emergencyContact"
+                    value={formData.emergencyContact}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese contacto de emergencia"
+                  />
+                </div>
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="mobile" className="block text-sm font-medium text-gray-700">
-                  Teléfono Móvil
-                </label>
-                <input
-                  type="tel"
-                  id="mobile"
-                  name="mobile"
-                  value={formData.mobile}
-                  onChange={handleChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                />
-              </div>
+            {/* Estado de Residencia */}
+            <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">Estado de Residencia</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label htmlFor="residentType" className="block text-sm font-medium text-gray-700">
+                    Tipo de Residente
+                  </label>
+                  <select
+                    id="residentType"
+                    name="residentType"
+                    value={formData.residentType}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                  >
+                    <option value="resident">Residente</option>
+                    <option value="non_resident">No Residente</option>
+                  </select>
+                </div>
 
-              <div>
-                <label htmlFor="emergencyContact" className="block text-sm font-medium text-gray-700">
-                  Contacto de Emergencia
-                </label>
-                <input
-                  type="text"
-                  id="emergencyContact"
-                  name="emergencyContact"
-                  value={formData.emergencyContact}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="residentType" className="block text-sm font-medium text-gray-700">
-                  Tipo de Residente
-                </label>
-                <select
-                  id="residentType"
-                  name="residentType"
-                  value={formData.residentType}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                >
-                  <option value="resident">Residente</option>
-                  <option value="non_resident">No Residente</option>
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="occupationStatus" className="block text-sm font-medium text-gray-700">
-                  Estado de Ocupación
-                </label>
-                <select
-                  id="occupationStatus"
-                  name="occupationStatus"
-                  value={formData.occupationStatus}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                >
-                  <option value="owner">Propietario</option>
-                  <option value="tenant">Inquilino</option>
-                  <option value="both">Ambos</option>
-                </select>
+                <div className="space-y-2">
+                  <label htmlFor="occupationStatus" className="block text-sm font-medium text-gray-700">
+                    Estado de Ocupación
+                  </label>
+                  <select
+                    id="occupationStatus"
+                    name="occupationStatus"
+                    value={formData.occupationStatus}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                  >
+                    <option value="owner">Propietario</option>
+                    <option value="tenant">Inquilino</option>
+                    <option value="both">Ambos</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Sección de vehículos */}
-            <div className="mt-8">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Vehículos</h2>
+            <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+              <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">Vehículos</h2>
               
               {/* Lista de vehículos agregados */}
               {formData.additionalInfo.vehicles && formData.additionalInfo.vehicles.length > 0 && (
-                <div className="mb-4 overflow-x-auto">
+                <div className="mb-6 overflow-x-auto rounded-lg border border-gray-200">
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marca</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modelo</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Color</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Placa</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tipo</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Marca</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Modelo</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Color</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Placa</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {formData.additionalInfo.vehicles.map((v, index) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{v.type}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{v.brand}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{v.model}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{v.color}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{v.plate}</td>
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.type}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.brand}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.model}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.color}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.plate}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
                               type="button"
                               onClick={() => removeVehicle(index)}
-                              className="text-red-600 hover:text-red-900"
+                              className="text-red-600 hover:text-red-900 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 rounded"
                             >
                               Eliminar
                             </button>
@@ -448,12 +481,12 @@ export default function RegisterOwner() {
                   </table>
                 </div>
               )}
-              
-              {/* Formulario para agregar vehículo */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div>
+
+              {/* Formulario de nuevo vehículo */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
                   <label htmlFor="vehicleType" className="block text-sm font-medium text-gray-700">
-                    Tipo
+                    Tipo de Vehículo
                   </label>
                   <input
                     type="text"
@@ -461,11 +494,11 @@ export default function RegisterOwner() {
                     name="type"
                     value={vehicle.type}
                     onChange={handleVehicleChange}
-                    placeholder="Carro, Moto..."
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ej: Auto, Moto"
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <label htmlFor="vehicleBrand" className="block text-sm font-medium text-gray-700">
                     Marca
                   </label>
@@ -475,10 +508,11 @@ export default function RegisterOwner() {
                     name="brand"
                     value={vehicle.brand}
                     onChange={handleVehicleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese marca"
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <label htmlFor="vehicleModel" className="block text-sm font-medium text-gray-700">
                     Modelo
                   </label>
@@ -488,10 +522,11 @@ export default function RegisterOwner() {
                     name="model"
                     value={vehicle.model}
                     onChange={handleVehicleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese modelo"
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <label htmlFor="vehicleColor" className="block text-sm font-medium text-gray-700">
                     Color
                   </label>
@@ -501,10 +536,11 @@ export default function RegisterOwner() {
                     name="color"
                     value={vehicle.color}
                     onChange={handleVehicleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese color"
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <label htmlFor="vehiclePlate" className="block text-sm font-medium text-gray-700">
                     Placa
                   </label>
@@ -514,7 +550,8 @@ export default function RegisterOwner() {
                     name="plate"
                     value={vehicle.plate}
                     onChange={handleVehicleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                    className="mt-1 block w-full rounded-lg border-gray-300 bg-white px-4 py-2 text-gray-900 shadow-sm transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    placeholder="Ingrese placa"
                   />
                 </div>
               </div>
@@ -523,25 +560,38 @@ export default function RegisterOwner() {
                 <button
                   type="button"
                   onClick={addVehicle}
-                  className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                 >
+                  <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
                   Agregar Vehículo
                 </button>
               </div>
             </div>
 
-            <div className="flex space-x-4 mt-8">
+            <div className="flex flex-col sm:flex-row gap-4 mt-8">
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-green-600 text-white py-2 px-6 rounded hover:bg-green-700 transition-colors w-full"
+                className="flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? "Procesando..." : "Registrar Propietario"}
+                {loading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Procesando...
+                  </>
+                ) : (
+                  "Registrar Propietario"
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => router.push("/home")}
-                className="bg-gray-500 text-white py-2 px-6 rounded hover:bg-gray-600 transition-colors"
+                className="inline-flex justify-center items-center px-6 py-3 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
               >
                 Cancelar
               </button>

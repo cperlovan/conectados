@@ -1,26 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const receiptController = require('../controllers/ReceiptController');
+const authMiddleware = require('../middleware/authMiddleware');
 
-// Crear un nuevo recibo
+// Aplicar el middleware de autenticación a todas las rutas
+router.use(authMiddleware);
+
+// Rutas para recibos
 router.post('/', receiptController.createReceipt);
-
-// Cambiar la visibilidad de uno o varios recibos
-router.put('/visibility', receiptController.toggleVisibility);
-
-// Obtener todos los recibos de un usuario específico
 router.get('/user/:userId', receiptController.getReceiptsByUser);
-
-// Obtener todos los recibos de un condominio específico
 router.get('/condominium/:condominiumId', receiptController.getReceiptsByCondominium);
-
-// Actualizar un recibo específico
-router.put('/:id', receiptController.updateReceipt);
-
-// Eliminar un recibo específico
-router.delete('/:id', receiptController.deleteReceipt);
-
-// Obtener un recibo específico por ID
 router.get('/:id', receiptController.getReceiptById);
+router.put('/:id', receiptController.updateReceipt);
+router.delete('/:id', receiptController.deleteReceipt);
+router.post('/toggle-visibility', receiptController.toggleVisibility);
 
 module.exports = router;

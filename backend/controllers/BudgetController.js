@@ -2,16 +2,63 @@ const Budget = require('../models/Budget');
 const EconomicActivity = require('../models/EconomicActivity');
 const User = require('../models/User');
 const Supplier = require('../models/Supplier');
+const Condominium = require('../models/Condominium');
 
 const budgetController = {
   // Crear un nuevo presupuesto
   createBudget: async (req, res) => {
     try {
-      const { title, description, amount, dueDate, economicActivities, condominiumId, supplierId } = req.body;
+      console.log('Datos recibidos para crear presupuesto:', req.body);
+      console.log('Usuario autenticado:', req.user);
+
+      const { title, description, amount, dueDate, economicActivities } = req.body;
 
       // Validar campos requeridos
-      if (!title || !description || !amount || !dueDate || !economicActivities || !condominiumId || !supplierId) {
-        return res.status(400).json({ message: 'Todos los campos son requeridos' });
+      if (!title || !description || !amount || !dueDate) {
+        return res.status(400).json({
+          message: "Faltan campos requeridos: título, descripción, monto o fecha de vencimiento"
+        });
+      }
+
+      // Determinar condominiumId y supplierId
+      let finalCondominiumId = req.body.condominiumId;
+      let finalSupplierId = req.body.supplierId;
+
+      // Si el usuario es un proveedor, verificar que el supplierId coincida con su ID
+      if (req.user.role === 'proveedor' || req.user.role === 'supplier') {
+        if (!finalSupplierId) {
+          return res.status(400).json({
+            message: "Se requiere el ID del proveedor para crear un presupuesto"
+          });
+        }
+
+        // Verificar que el proveedor existe y obtener su condominiumId
+        const supplier = await Supplier.findByPk(finalSupplierId);
+        if (!supplier) {
+          return res.status(404).json({
+            message: "El proveedor especificado no existe"
+          });
+        }
+
+        // Si no se proporcionó condominiumId, usar el del proveedor
+        if (!finalCondominiumId) {
+          finalCondominiumId = supplier.condominiumId;
+        }
+
+        // Comentamos esta validación para permitir que un proveedor pueda crear presupuestos para diferentes condominios
+        // if (finalCondominiumId !== supplier.condominiumId) {
+        //   return res.status(400).json({
+        //     message: `El proveedor pertenece al condominio ${supplier.condominiumId}, no al condominio ${finalCondominiumId}`
+        //   });
+        // }
+      }
+
+      // Verificar que el condominio existe
+      const condominium = await Condominium.findByPk(finalCondominiumId);
+      if (!condominium) {
+        return res.status(404).json({
+          message: "El condominio especificado no existe"
+        });
       }
 
       // Crear el presupuesto
@@ -20,71 +67,82 @@ const budgetController = {
         description,
         amount,
         dueDate,
-        condominiumId,
-        supplierId
+        status: 'pending',
+        condominiumId: finalCondominiumId,
+        supplierId: finalSupplierId
       });
 
-      // Asociar las actividades económicas
+      // Asociar actividades económicas si se proporcionaron
       if (economicActivities && economicActivities.length > 0) {
         await budget.addEconomicActivities(economicActivities);
       }
 
-      // Obtener el presupuesto con sus actividades económicas
-      const budgetWithAssociations = await Budget.findByPk(budget.id, {
+      // Obtener el presupuesto con sus asociaciones
+      const createdBudget = await Budget.findByPk(budget.id, {
         include: [
-          {
-            model: EconomicActivity,
-            as: 'budgetEconomicActivities'
+          { model: EconomicActivity, as: 'economicActivities', through: { attributes: [] } },
+          { 
+            model: Supplier, 
+            as: 'supplier', 
+            attributes: ['id', 'name', 'type', 'userId', 'condominiumId', 'contactInfo'],
+            include: [
+              {
+                model: User,
+                attributes: ['id', 'name', 'email']
+              }
+            ]
           },
-          {
-            model: User,
-            as: 'supplier',
-            attributes: ['id', 'name', 'email']
-          }
+          { model: Condominium, as: 'condominium', attributes: ['id', 'name'] }
         ]
       });
 
-      res.status(201).json(budgetWithAssociations);
+      res.status(201).json(createdBudget);
     } catch (error) {
       console.error('Error al crear presupuesto:', error);
-      res.status(500).json({ message: 'Error al crear el presupuesto', error: error.message });
+      res.status(500).json({
+        message: "Error al crear el presupuesto",
+        error: error.message
+      });
     }
   },
 
-  // Obtener todos los presupuestos de un condominio
+  // Obtener presupuestos por condominio
   getBudgetsByCondominium: async (req, res) => {
     try {
       const { condominiumId } = req.params;
-      console.log('Buscando presupuestos para condominio:', condominiumId);
+      const userCondominiumId = req.user.condominiumId;
 
-      // Validar que el condominiumId sea un número válido
-      if (!condominiumId || isNaN(condominiumId)) {
-        return res.status(400).json({
-          message: 'ID de condominio inválido',
-          debug: { condominiumId }
+      // Verificar que el usuario pertenece al condominio
+      if (condominiumId != userCondominiumId) {
+        return res.status(403).json({ 
+          message: 'No tiene permisos para acceder a este condominio',
+          condominiumId,
+          userCondominiumId
         });
       }
 
-      // Buscar los presupuestos incluyendo la información del proveedor y actividades económicas
       const budgets = await Budget.findAll({
         where: { condominiumId },
         include: [
           {
             model: Supplier,
-            as: 'budgetSupplier',
-            attributes: ['id', 'name', 'type', 'status', 'userId']
+            as: 'supplier',
+            attributes: ['id', 'name', 'type', 'userId', 'condominiumId', 'contactInfo'],
+            include: [
+              {
+                model: User,
+                attributes: ['id', 'name', 'email']
+              }
+            ]
           },
           {
             model: EconomicActivity,
-            as: 'budgetEconomicActivities',
-            through: { attributes: [] },
-            attributes: ['id', 'name', 'description']
+            as: 'economicActivities',
+            through: { attributes: [] }
           }
         ],
         order: [['createdAt', 'DESC']]
       });
-
-      console.log('Presupuestos encontrados:', budgets.length);
       
       // Calcular estadísticas
       const stats = {
@@ -102,32 +160,61 @@ const budgetController = {
       console.error('Error al obtener presupuestos:', error);
       res.status(500).json({ 
         message: 'Error al obtener los presupuestos', 
-        error: error.message,
-        stack: error.stack 
+        error: error.message
       });
     }
   },
 
-  // Obtener un presupuesto específico
+  // Obtener un presupuesto por ID
   getBudgetById: async (req, res) => {
     try {
       const { id } = req.params;
+      const userRole = req.user.role;
+      const supplierId = req.user.supplierId;
+
       const budget = await Budget.findByPk(id, {
-        include: [{
-          model: EconomicActivity,
-          as: 'budgetEconomicActivities',
-          through: { attributes: [] }
-        }]
+        include: [
+          {
+            model: Supplier,
+            as: 'supplier',
+            attributes: ['id', 'name', 'type', 'userId', 'condominiumId', 'contactInfo'],
+            include: [
+              {
+                model: User,
+                attributes: ['id', 'name', 'email']
+              }
+            ]
+          },
+          {
+            model: EconomicActivity,
+            as: 'economicActivities',
+            through: { attributes: [] }
+          }
+        ]
       });
 
       if (!budget) {
         return res.status(404).json({ message: 'Presupuesto no encontrado' });
       }
 
+      // Verificar permisos
+      if (userRole === 'proveedor' || userRole === 'supplier') {
+        if (!supplierId) {
+          return res.status(403).json({ message: 'No se pudo verificar los permisos del proveedor' });
+        }
+
+        if (budget.supplierId !== supplierId) {
+          return res.status(403).json({ message: 'No tienes permiso para ver este presupuesto' });
+        }
+      }
+
       res.json(budget);
     } catch (error) {
       console.error('Error al obtener presupuesto:', error);
-      res.status(500).json({ message: 'Error al obtener el presupuesto', error: error.message });
+      res.status(500).json({ 
+        message: 'Error al obtener el presupuesto', 
+        error: error.message
+      });
     }
   },
 
@@ -136,10 +223,32 @@ const budgetController = {
     try {
       const { id } = req.params;
       const { title, description, amount, dueDate, economicActivities, status } = req.body;
+      const userId = req.user.id;
+      const userRole = req.user.role;
+      const supplierId = req.user.supplierId;
 
       const budget = await Budget.findByPk(id);
       if (!budget) {
         return res.status(404).json({ message: 'Presupuesto no encontrado' });
+      }
+
+      // Verificar permisos para actualizar el estado
+      if (status && status !== budget.status) {
+        // Solo los administradores pueden cambiar el estado
+        if (userRole !== 'admin' && userRole !== 'superadmin') {
+          return res.status(403).json({ message: 'No tienes permiso para cambiar el estado del presupuesto' });
+        }
+      }
+
+      // Verificar permisos para actualizar otros campos
+      if (userRole === 'proveedor' || userRole === 'supplier') {
+        if (!supplierId) {
+          return res.status(403).json({ message: 'No se pudo verificar los permisos del proveedor' });
+        }
+
+        if (budget.supplierId !== supplierId) {
+          return res.status(403).json({ message: 'No tienes permiso para actualizar este presupuesto' });
+        }
       }
 
       await budget.update({
@@ -150,17 +259,31 @@ const budgetController = {
         status
       });
 
-      if (economicActivities && economicActivities.length > 0) {
+      // Actualizar actividades económicas si se proporcionan
+      if (economicActivities && Array.isArray(economicActivities)) {
         await budget.setEconomicActivities(economicActivities);
       }
 
-      // Obtener el presupuesto actualizado con sus actividades
+      // Obtener el presupuesto actualizado con sus relaciones
       const updatedBudget = await Budget.findByPk(id, {
-        include: [{
-          model: EconomicActivity,
-          as: 'budgetEconomicActivities',
-          through: { attributes: [] }
-        }]
+        include: [
+          {
+            model: Supplier,
+            as: 'supplier',
+            attributes: ['id', 'name', 'type', 'userId', 'condominiumId', 'contactInfo'],
+            include: [
+              {
+                model: User,
+                attributes: ['id', 'name', 'email']
+              }
+            ]
+          },
+          {
+            model: EconomicActivity,
+            as: 'economicActivities',
+            through: { attributes: [] }
+          }
+        ]
       });
 
       res.json({
@@ -191,15 +314,16 @@ const budgetController = {
     }
   },
 
-  // Obtener presupuestos del proveedor
+  // Obtener presupuestos por proveedor
   getBudgetsBySupplier: async (req, res) => {
     try {
       const { supplierId } = req.params;
-      console.log('Buscando presupuestos para el proveedor:', supplierId);
+      const userId = req.user.id;
+      const userRole = req.user.role;
+      const userSupplierId = req.user.supplierId;
 
       // Validar que el supplierId sea un número válido
       if (!supplierId || isNaN(supplierId)) {
-        console.log('ID de proveedor inválido:', supplierId);
         return res.status(400).json({ 
           message: 'ID de proveedor inválido',
           supplierId 
@@ -207,21 +331,48 @@ const budgetController = {
       }
 
       // Verificar si el proveedor existe
-      const supplier = await Supplier.findByPk(supplierId);
+      const supplier = await Supplier.findByPk(supplierId, {
+        include: [
+          {
+            model: User,
+            attributes: ['id', 'role', 'email']
+          },
+          {
+            model: EconomicActivity,
+            as: 'EconomicActivities'
+          }
+        ]
+      });
+
       if (!supplier) {
-        console.log('Proveedor no encontrado:', supplierId);
         return res.status(404).json({ 
           message: 'Proveedor no encontrado',
           supplierId 
         });
       }
 
-      // Verificar que el proveedor pertenece al mismo condominio que el usuario
-      if (supplier.condominiumId !== req.user.condominiumId) {
-        console.log('El proveedor pertenece a un condominio diferente');
+      // Verificar permisos
+      const isAdmin = ['admin', 'superadmin'].includes(userRole);
+      const isOwnSupplier = userSupplierId === parseInt(supplierId);
+      const isSameCondominium = supplier.condominiumId === req.user.condominiumId;
+
+      // Si es admin del mismo condominio, permitir acceso
+      if (isAdmin && isSameCondominium) {
+        // Acceso permitido
+      }
+      // Si es el proveedor propietario, permitir acceso
+      else if (isOwnSupplier) {
+        // Acceso permitido
+      }
+      // En cualquier otro caso, denegar acceso
+      else {
         return res.status(403).json({ 
           message: 'No tiene permisos para acceder a este proveedor',
-          supplierId 
+          debug: {
+            isAdmin,
+            isSameCondominium,
+            isOwnSupplier
+          }
         });
       }
 
@@ -230,12 +381,14 @@ const budgetController = {
         include: [
           {
             model: EconomicActivity,
-            as: 'budgetEconomicActivities',
-            through: { attributes: [] }
+            as: 'economicActivities',
+            through: { attributes: [] },
+            attributes: ['id', 'name', 'description']
           },
           {
             model: Supplier,
-            as: 'budgetSupplier',
+            as: 'supplier',
+            attributes: ['id', 'name', 'type', 'userId', 'condominiumId', 'contactInfo'],
             include: [
               {
                 model: User,
@@ -246,15 +399,24 @@ const budgetController = {
         ],
         order: [['createdAt', 'DESC']]
       });
+      
+      // Calcular estadísticas
+      const stats = {
+        total: budgets.length,
+        pending: budgets.filter(b => b.status === 'pending').length,
+        approved: budgets.filter(b => b.status === 'approved').length,
+        rejected: budgets.filter(b => b.status === 'rejected').length
+      };
 
-      console.log('Presupuestos encontrados:', budgets.length);
-      res.json(budgets);
+      res.json({
+        budgets,
+        stats
+      });
     } catch (error) {
       console.error('Error al obtener presupuestos del proveedor:', error);
       res.status(500).json({ 
         message: 'Error al obtener presupuestos del proveedor',
-        error: error.message,
-        stack: error.stack
+        error: error.message 
       });
     }
   }

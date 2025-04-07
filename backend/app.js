@@ -14,11 +14,24 @@ const app = express();
 
 // Configuración de CORS
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Cache-Control',
+    'Pragma',
+    'Expires',
+    'X-User-Role'
+  ],
+  exposedHeaders: [
+    'Content-Length', 
+    'Cache-Control',
+    'Pragma',
+    'Expires'
+  ],
   credentials: true,
-  optionsSuccessStatus: 200
+  maxAge: 86400 // 24 horas
 };
 
 app.use(cors(corsOptions));
@@ -50,9 +63,6 @@ const User = require('./models/User');
 const Condominium = require('./models/Condominium');
 const Budget = require('./models/Budget');
 const EconomicActivity = require('./models/EconomicActivity');
-
-// Importar asociaciones
-require('./models/associations');
 
 // Importar relaciones
 require('./relations');

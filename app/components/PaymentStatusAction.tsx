@@ -1,29 +1,106 @@
 'use client'
 
 import { useState } from 'react'
-import { FiCheckCircle, FiXCircle, FiAlertTriangle } from 'react-icons/fi'
+import { FiCheckCircle, FiXCircle } from 'react-icons/fi'
 import { toast } from 'react-hot-toast'
+import { updatePaymentStatus } from '@/app/actions/payments'
+import { useFormStatus } from 'react-dom'
+import { PaymentStatus } from '@/app/types/payment'
 
-// Función para obtener texto descriptivo del estado
-function getStatusText(status: string): string {
+function getStatusText(status: PaymentStatus): string {
   switch (status) {
     case 'verified':
-      return 'verificado exitosamente';
+      return 'verificado exitosamente'
     case 'approved':
-      return 'aprobado exitosamente';
+      return 'aprobado exitosamente'
     case 'rejected':
-      return 'rechazado';
+      return 'rechazado'
     case 'pending':
-      return 'en espera de verificación';
+      return 'pendiente de verificación'
     default:
-      return `actualizado a ${status}`;
+      return `actualizado a ${status}`
   }
+}
+
+function getStatusBadge(status: PaymentStatus) {
+  const baseStyles = 'px-2 py-1 rounded-full text-sm font-medium'
+  
+  switch (status) {
+    case 'verified':
+      return (
+        <span className={`${baseStyles} bg-green-100 text-green-800`}>
+          Verificado
+        </span>
+      )
+    case 'approved':
+      return (
+        <span className={`${baseStyles} bg-blue-100 text-blue-800`}>
+          Aprobado
+        </span>
+      )
+    case 'rejected':
+      return (
+        <span className={`${baseStyles} bg-red-100 text-red-800`}>
+          Rechazado
+        </span>
+      )
+    case 'pending':
+      return (
+        <span className={`${baseStyles} bg-yellow-100 text-yellow-800`}>
+          Pendiente de Verificación
+        </span>
+      )
+    default:
+      return (
+        <span className={`${baseStyles} bg-gray-100 text-gray-800`}>
+          {status}
+        </span>
+      )
+  }
+}
+
+function StatusButton({ 
+  onClick, 
+  disabled, 
+  variant = 'blue',
+  icon: Icon,
+  children 
+}: { 
+  onClick: () => void
+  disabled: boolean
+  variant?: 'blue' | 'green' | 'red'
+  icon: typeof FiCheckCircle | typeof FiXCircle
+  children: React.ReactNode
+}) {
+  const { pending } = useFormStatus()
+  
+  const baseStyles = 'flex items-center px-4 py-2 rounded-md text-white'
+  const variantStyles = {
+    blue: 'bg-blue-600 hover:bg-blue-700',
+    green: 'bg-green-600 hover:bg-green-700',
+    red: 'bg-red-600 hover:bg-red-700'
+  }
+  
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || pending}
+      className={`${baseStyles} ${
+        disabled
+          ? 'bg-gray-400 cursor-not-allowed'
+          : variantStyles[variant]
+      }`}
+    >
+      <Icon className="mr-2" />
+      {children}
+    </button>
+  )
 }
 
 interface PaymentStatusActionProps {
   paymentId: number
-  currentStatus: string
-  onStatusUpdated: (payment: any) => void
+  currentStatus: PaymentStatus
+  onStatusUpdated?: (payment: any) => void
 }
 
 export default function PaymentStatusAction({
@@ -32,59 +109,33 @@ export default function PaymentStatusAction({
   onStatusUpdated
 }: PaymentStatusActionProps) {
   const [isUpdating, setIsUpdating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Identificar si los botones deben estar habilitados según el estado actual
-  const showApproveButton = currentStatus !== 'approved'
-  const showRejectButton = currentStatus !== 'rejected'
-  const showVerifyButton = currentStatus !== 'verified'
+  const showVerifyButton = !['verified', 'approved'].includes(currentStatus)
+  const showApproveButton = !['approved', 'verified'].includes(currentStatus)
+  const showRejectButton = !['rejected'].includes(currentStatus)
 
-  const handleUpdateStatus = async (newStatus: string) => {
+  const handleUpdateStatus = async (newStatus: PaymentStatus) => {
     setIsUpdating(true)
+    setError(null)
     
     try {
-      // Mostrar toast de carga
       toast.loading('Actualizando estado del pago...', { id: 'status-update' })
       
-      // Llamar a la API directamente
-      const response = await fetch('/api/update-payment-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          paymentId,
-          status: newStatus
-        })
-      })
+      const result = await updatePaymentStatus(paymentId, newStatus)
       
-      const data = await response.json()
-      
-      if (data.success) {
-        // Actualizar UI con el nuevo estado
+      if (result.success) {
         toast.success(`Pago ${getStatusText(newStatus)}`)
-        
-        // Forzar una recarga de datos después de la actualización
         if (onStatusUpdated) {
-          setTimeout(() => {
-            onStatusUpdated(data.payment)
-          }, 500)
+          onStatusUpdated(result.payment)
         }
-        
-        // Forzar una actualización de datos en la página después de la actualización
-        setTimeout(() => {
-          window.location.reload()
-        }, 1500)
       } else {
-        // Mostrar error
-        console.error('Error en actualización:', data.error)
-        toast.error(`Error al actualizar: ${data.error || 'Intente nuevamente'}`, { id: 'status-update' })
-        
-        // Si hay datos de pago, actualizar igualmente la UI
-        if (data.payment) {
-          onStatusUpdated(data.payment)
-        }
+        setError(result.error || 'Error desconocido')
+        toast.error(`Error al actualizar: ${result.error || 'Error desconocido'}`, { id: 'status-update' })
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      setError(errorMessage)
       console.error('Error al actualizar estado:', error)
       toast.error('Error al comunicarse con el servidor', { id: 'status-update' })
     } finally {
@@ -94,55 +145,43 @@ export default function PaymentStatusAction({
 
   return (
     <div className="mt-8 pt-6 border-t border-gray-200">
-      <h2 className="text-lg font-medium text-gray-700 mb-4">Acciones</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-medium text-gray-700">Acciones</h2>
+        {getStatusBadge(currentStatus)}
+      </div>
       
       <div className="flex flex-wrap gap-3">
-        {/* Botón de verificar */}
         {showVerifyButton && (
-          <button
+          <StatusButton
             onClick={() => handleUpdateStatus('verified')}
             disabled={isUpdating}
-            className={`flex items-center px-4 py-2 rounded-md text-white ${
-              currentStatus === 'verified'
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+            variant="blue"
+            icon={FiCheckCircle}
           >
-            <FiCheckCircle className="mr-2" />
             {currentStatus === 'verified' ? 'Ya Verificado' : 'Marcar como Verificado'}
-          </button>
+          </StatusButton>
         )}
         
-        {/* Botón de aprobar */}
         {showApproveButton && (
-          <button
+          <StatusButton
             onClick={() => handleUpdateStatus('approved')}
             disabled={isUpdating}
-            className={`flex items-center px-4 py-2 rounded-md text-white ${
-              currentStatus === 'approved'
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700'
-            }`}
+            variant="green"
+            icon={FiCheckCircle}
           >
-            <FiCheckCircle className="mr-2" />
             {currentStatus === 'approved' ? 'Ya Aprobado' : 'Aprobar Pago'}
-          </button>
+          </StatusButton>
         )}
         
-        {/* Botón de rechazar */}
         {showRejectButton && (
-          <button
+          <StatusButton
             onClick={() => handleUpdateStatus('rejected')}
             disabled={isUpdating}
-            className={`flex items-center px-4 py-2 rounded-md text-white ${
-              currentStatus === 'rejected'
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-red-600 hover:bg-red-700'
-            }`}
+            variant="red"
+            icon={FiXCircle}
           >
-            <FiXCircle className="mr-2" />
             {currentStatus === 'rejected' ? 'Ya Rechazado' : 'Rechazar Pago'}
-          </button>
+          </StatusButton>
         )}
       </div>
       
@@ -150,6 +189,12 @@ export default function PaymentStatusAction({
         <div className="mt-4 flex items-center text-sm text-gray-500">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-2"></div>
           Actualizando estado...
+        </div>
+      )}
+      
+      {error && (
+        <div className="mt-4 text-sm text-red-600">
+          {error}
         </div>
       )}
     </div>

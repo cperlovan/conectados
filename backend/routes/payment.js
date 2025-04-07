@@ -21,4 +21,7 @@ router.put('/verify/:id', paymentController.verifyPayment);
 // Eliminar un pago específico
 router.delete('/:id', paymentController.deletePayment);
 
+// Obtener un pago específico por ID
+router.get('/:id', paymentController.getPaymentById);
+
 module.exports = router;

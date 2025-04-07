@@ -40,4 +40,9 @@ router.post('/admin-register', auth, (req, res, next) => {
   }
 }, supplierController.adminRegister);
 
+router.get('/:supplierId', auth, supplierController.getSupplierById);
+
+// Ruta para actualizar el condominiumId de un proveedor
+router.put("/:supplierId/condominium", auth, supplierController.updateSupplierCondominium);
+
 module.exports = router;

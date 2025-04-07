@@ -6,98 +6,114 @@ import Cookies from "js-cookie";
 
 interface TokenPayload {
   id: number;
-  email: string;
   role: string;
-  condominiumId: number;
-  authorized: boolean;
-  status: string;
+  name?: string;
+  email?: string;
+  condominiumId?: number;
+  supplierId?: number;
+  exp?: number;
 }
 
 export const useToken = () => {
   const [token, setToken] = useState<string | null>(null);
   const [userInfo, setUserInfo] = useState<TokenPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const getToken = () => {
+    const initializeToken = async () => {
       try {
-        // Intentar obtener el token de js-cookie
-        const cookieToken = Cookies.get("token");
-        console.log("useToken - Token encontrado en cookies:", cookieToken ? "Sí" : "No");
-        
-        if (!cookieToken) {
-          console.log("useToken - No hay token en las cookies");
-          setToken(null);
-          setUserInfo(null);
+        // Obtener el token de las cookies
+        const tokenFromCookie = Cookies.get('token');
+        if (!tokenFromCookie) {
+          console.log('No se encontró token en las cookies');
           setIsLoading(false);
           return;
         }
 
-        // Verificar si el token es válido
-        try {
-          const decoded = jwtDecode(cookieToken) as TokenPayload;
-          //console.log("useToken - Token decodificado:", decoded);
-          
-          if (!decoded.authorized) {
-            console.log("useToken - Usuario no autorizado");
-            Cookies.remove("token");
-            setToken(null);
-            setUserInfo(null);
-            setIsLoading(false);
-            return;
-          }
-          
-          if (!decoded.role) {
-            console.log("useToken - Token sin rol definido");
-            Cookies.remove("token");
-            setToken(null);
-            setUserInfo(null);
-            setIsLoading(false);
-            return;
-          }
+        // Decodificar el token
+        const decoded = jwtDecode<TokenPayload>(tokenFromCookie);
+        console.log('Token decodificado:', decoded);
 
-          // Verificar si el token ha expirado
-          const currentTime = Date.now() / 1000;
-          const tokenExp = (decoded as any).exp;
-          if (tokenExp && tokenExp < currentTime) {
-            console.log("useToken - Token expirado");
-            Cookies.remove("token");
-            setToken(null);
-            setUserInfo(null);
-            setIsLoading(false);
-            return;
-          }
-
-          // Solo actualizar si hay cambios
-          if (token !== cookieToken || JSON.stringify(userInfo) !== JSON.stringify(decoded)) {
-            setToken(cookieToken);
-            setUserInfo(decoded);
-            console.log("useToken - Token y userInfo actualizados correctamente");
-          }
-        } catch (error) {
-          console.error("useToken - Error al decodificar el token:", error);
-          Cookies.remove("token");
-          setToken(null);
-          setUserInfo(null);
+        // Verificar que el token tenga la información necesaria
+        if (!decoded || typeof decoded !== 'object' || !('id' in decoded) || !('role' in decoded)) {
+          console.error('Token inválido o incompleto:', decoded);
+          setError('Token inválido o incompleto');
+          setIsLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error("useToken - Error al obtener el token:", error);
-        setToken(null);
-        setUserInfo(null);
-      } finally {
+
+        // Establecer el token y la información del usuario
+        setToken(tokenFromCookie);
+        setUserInfo({
+          id: decoded.id,
+          role: decoded.role,
+          name: decoded.name,
+          email: decoded.email,
+          condominiumId: decoded.condominiumId,
+          supplierId: decoded.supplierId
+        });
+
+        // Si el usuario es un proveedor y no tiene supplierId en el token, intentar obtenerlo
+        if ((decoded.role === 'proveedor' || decoded.role === 'supplier') && !decoded.supplierId) {
+          console.log('Usuario es proveedor pero no tiene supplierId en el token, intentando obtenerlo...');
+          const supplierId = await fetchSupplierId(decoded.id, tokenFromCookie);
+          if (supplierId) {
+            console.log('SupplierId obtenido:', supplierId);
+            setUserInfo(prev => prev ? {
+              ...prev,
+              supplierId
+            } : null);
+          } else {
+            console.warn('No se pudo obtener el supplierId, pero se permitirá continuar');
+            // No establecemos un error aquí, permitimos que el controlador específico decida cómo manejar la ausencia de supplierId
+          }
+        }
+
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error al inicializar el token:', err);
+        setError(err instanceof Error ? err.message : 'Error al inicializar el token');
         setIsLoading(false);
       }
     };
 
-    // Ejecutar inmediatamente
-    getToken();
+    initializeToken();
+  }, []);
 
-    // Configurar un intervalo para verificar cambios en las cookies cada 5 segundos
-    const interval = setInterval(getToken, 5000);
+  const fetchSupplierId = async (userId: number, token: string): Promise<number | null> => {
+    try {
+      console.log('Obteniendo supplierId para usuario:', userId);
+      const response = await fetch(`http://localhost:3040/api/suppliers/user/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    // Limpiar el intervalo cuando el componente se desmonte
-    return () => clearInterval(interval);
-  }, [token, userInfo]); // Agregar dependencias para evitar actualizaciones innecesarias
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error al obtener el ID del proveedor");
+      }
 
-  return { token, userInfo, isLoading };
+      const data = await response.json();
+      console.log('Respuesta al obtener supplierId:', data);
+
+      if (!data?.id) {
+        console.error('No se encontró el ID del proveedor en la respuesta');
+        return null;
+      }
+
+      return data.id;
+    } catch (err) {
+      console.error('Error al obtener supplierId:', err);
+      return null;
+    }
+  };
+
+  return {
+    token,
+    userInfo,
+    isLoading,
+    error
+  };
 };

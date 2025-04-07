@@ -7,7 +7,7 @@ const Receipt = sequelize.define('Receipt', {
     allowNull: false,
   },
   status: {
-    type: DataTypes.ENUM('pending', 'paid', 'overdue', 'anuled'),
+    type: DataTypes.ENUM('pending', 'paid', 'overdue', 'anuled', 'partial'),
     defaultValue: 'pending',
   },
   dueDate: {
@@ -16,15 +16,15 @@ const Receipt = sequelize.define('Receipt', {
   },
   pending_amount: {
     type: DataTypes.DECIMAL(10, 2),
-    defaultValue: 0, // Inicialmente igual al monto total del recibo
+    defaultValue: null,
   },
   credit_balance: {
     type: DataTypes.DECIMAL(10, 2),
-    defaultValue: 0, // Crédito acumulado por pagos en exceso
+    defaultValue: 0,
   },
   visible: {
     type: DataTypes.BOOLEAN,
-    defaultValue: false, // Por defecto los recibos no son visibles
+    defaultValue: false,
   },
   userId: {
     type: DataTypes.INTEGER,
@@ -44,13 +44,13 @@ const Receipt = sequelize.define('Receipt', {
   },
   propertyId: {
     type: DataTypes.INTEGER,
-    allowNull: true, // Puede ser null en algunos casos
+    allowNull: true,
     references: {
       model: 'Properties',
       key: 'id',
     },
-    onDelete: 'SET NULL', // Si se elimina la propiedad, se mantiene el recibo pero sin propiedad
-    onUpdate: 'CASCADE', // Si se actualiza el ID de la propiedad, actualizar la referencia
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
   },
   month: {
     type: DataTypes.INTEGER,

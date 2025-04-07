@@ -21,6 +21,14 @@ const createSupplier = async (req, res) => {
       economicActivities,
     } = req.body;
 
+    // Obtener el condominiumId del usuario que crea el proveedor
+    const { condominiumId } = req.user;
+    if (!condominiumId) {
+      return res.status(400).json({
+        message: "No se pudo determinar el condominio del proveedor",
+      });
+    }
+
     // Verificar si el email ya existe
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -41,6 +49,7 @@ const createSupplier = async (req, res) => {
       address,
       role: "proveedor",
       status: "active",
+      condominiumId // Asignar el mismo condominiumId al usuario
     });
 
     // Determinar el nombre del proveedor
@@ -59,6 +68,7 @@ const createSupplier = async (req, res) => {
       name: supplierName, // Nombre de la empresa o nombre del usuario
       type,
       contactInfo,
+      condominiumId // Asignar el mismo condominiumId al proveedor
     });
 
     // Asociar con condominios
@@ -296,77 +306,107 @@ const completeProfile = async (req, res) => {
 const updateSupplier = async (req, res) => {
   try {
     const { supplierId } = req.params;
-    const { name, lastname, type, contactInfo } = req.body;
+    const { name, type, status, contactInfo, economicActivities } = req.body;
+    const { condominiumId } = req.user;
+
+    console.log('Datos recibidos:', { supplierId, name, type, status, contactInfo, economicActivities });
 
     // Verificar si el proveedor existe
     const supplier = await Supplier.findByPk(supplierId, {
       include: [
         {
           model: User,
-          attributes: ["id", "name", "lastname", "email", "status"],
+          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status']
         },
-      ],
+        {
+          model: EconomicActivity,
+          through: { attributes: [] }
+        }
+      ]
     });
+
     if (!supplier) {
-      return res.status(404).json({ message: "Proveedor no encontrado." });
+      return res.status(404).json({ message: 'Proveedor no encontrado.' });
+    }
+
+    // Verificar que el proveedor pertenezca al mismo condominio que el usuario
+    if (supplier.condominiumId !== condominiumId) {
+      return res.status(403).json({ message: 'No tiene permisos para actualizar este proveedor.' });
     }
 
     // Validar que se proporcionen los datos necesarios
-    if (!type || !contactInfo) {
+    if (!name || !type) {
       return res.status(400).json({
-        message: "Todos los campos obligatorios deben ser proporcionados.",
+        message: 'El nombre y tipo son campos obligatorios.'
       });
     }
 
-    // Validar que contactInfo contenga el campo 'name' (nombre de la empresa)
-    if (!contactInfo.name) {
-      return res.status(400).json({
-        message: "El campo 'name' dentro de contactInfo es obligatorio.",
-      });
-    }
-
-    // Actualizar datos del proveedor (Suppliers)
-    const updatedSupplier = await supplier.update({
-      name: contactInfo.name, // Usar el campo 'name' dentro de contactInfo como el nombre de la empresa
+    // Actualizar datos del proveedor
+    await supplier.update({
+      name,
       type,
-      contactInfo: {
-        companyName: contactInfo.name, // Agregar el nombre de la empresa dentro de contactInfo
-        phone: contactInfo.phone,
-        movil: contactInfo.movil,
-        address: contactInfo.address,
-      },
+      status: status || 'active'
     });
 
-    // No modificar los datos del usuario en la tabla Users
-    // Solo actualizamos los campos relacionados con el contacto si son relevantes
+    // Actualizar datos del usuario asociado
     await User.update(
       {
-        telephone: contactInfo.phone || supplier.User.telephone,
-        movil: contactInfo.movil || supplier.User.movil,
-        address: contactInfo.address || supplier.User.address,
+        name: contactInfo.name,
+        lastname: contactInfo.lastname,
+        telephone: contactInfo.phone,
+        email: contactInfo.email,
+        address: contactInfo.address
       },
       { where: { id: supplier.userId } }
     );
 
+    // Actualizar actividades económicas si se proporcionaron
+    if (economicActivities && Array.isArray(economicActivities)) {
+      // Eliminar todas las relaciones existentes
+      await supplier.setEconomicActivities([]);
+      // Agregar las nuevas relaciones
+      await supplier.addEconomicActivities(economicActivities);
+    }
+
     // Obtener el proveedor actualizado con todas sus relaciones
-    const supplierWithRelations = await Supplier.findByPk(supplier.id, {
+    const updatedSupplier = await Supplier.findByPk(supplier.id, {
       include: [
         {
           model: User,
-          attributes: ["id", "name", "lastname", "email", "status"],
+          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status']
         },
-      ],
+        {
+          model: EconomicActivity,
+          through: { attributes: [] }
+        }
+      ]
     });
 
+    // Formatear la respuesta
+    const formattedSupplier = {
+      id: updatedSupplier.id,
+      name: updatedSupplier.name,
+      type: updatedSupplier.type,
+      status: updatedSupplier.status,
+      contactInfo: {
+        name: updatedSupplier.User.name,
+        lastname: updatedSupplier.User.lastname,
+        phone: updatedSupplier.User.telephone,
+        email: updatedSupplier.User.email,
+        address: updatedSupplier.User.address
+      },
+      economicActivities: updatedSupplier.EconomicActivities
+    };
+
     res.json({
-      message: "Proveedor actualizado exitosamente.",
-      supplier: supplierWithRelations,
+      message: 'Proveedor actualizado exitosamente.',
+      supplier: formattedSupplier
     });
   } catch (error) {
-    console.error("Error al actualizar proveedor:", error);
+    console.error('Error al actualizar proveedor:', error);
     res.status(500).json({
-      message: "Error al actualizar el proveedor",
-      error: error.message,
+      message: 'Error al actualizar el proveedor',
+      error: error.message
     });
   }
 };
@@ -411,9 +451,16 @@ const adminRegister = async (req, res) => {
       name,
       type,
       contactInfo,
-      economicActivities,
-      condominiumId
+      economicActivities
     } = req.body;
+
+    // Obtener el condominiumId del administrador que registra el proveedor
+    const { condominiumId } = req.user;
+    if (!condominiumId) {
+      return res.status(400).json({
+        message: "No se pudo determinar el condominio del proveedor",
+      });
+    }
 
     console.log("Datos recibidos:", { userId, name, type, contactInfo, economicActivities, condominiumId });
 
@@ -442,7 +489,8 @@ const adminRegister = async (req, res) => {
       movil: contactInfo.phone,
       address: contactInfo.address,
       status: "active",
-      authorized: true
+      authorized: true,
+      condominiumId // Asignar el mismo condominiumId al usuario
     };
 
     console.log("Datos a actualizar del usuario:", userUpdateData);
@@ -473,7 +521,7 @@ const adminRegister = async (req, res) => {
         ...contactInfo,
         email: existingUser.email
       },
-      condominiumId
+      condominiumId // Asignar el mismo condominiumId al proveedor
     };
 
     console.log("Datos a enviar al backend para crear proveedor:", supplierData);
@@ -511,6 +559,98 @@ const adminRegister = async (req, res) => {
   }
 };
 
+// Obtener un proveedor por ID
+const getSupplierById = async (req, res) => {
+  try {
+    const { supplierId } = req.params;
+    const { condominiumId } = req.user;
+
+    const supplier = await Supplier.findByPk(supplierId, {
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status']
+        },
+        {
+          model: EconomicActivity,
+          through: { attributes: [] }
+        }
+      ]
+    });
+
+    if (!supplier) {
+      return res.status(404).json({ message: 'Proveedor no encontrado.' });
+    }
+
+    // Verificar que el proveedor pertenezca al mismo condominio que el usuario
+    if (supplier.condominiumId !== condominiumId) {
+      return res.status(403).json({ message: 'No tiene permisos para acceder a este proveedor.' });
+    }
+
+    // Formatear la respuesta
+    const formattedSupplier = {
+      id: supplier.id,
+      name: supplier.name,
+      type: supplier.type,
+      status: supplier.status || 'active',
+      contactInfo: {
+        name: supplier.User.name,
+        lastname: supplier.User.lastname,
+        phone: supplier.User.telephone,
+        email: supplier.User.email,
+        address: supplier.User.address
+      },
+      economicActivities: supplier.EconomicActivities
+    };
+
+    res.json(formattedSupplier);
+  } catch (error) {
+    console.error('Error al obtener proveedor:', error);
+    res.status(500).json({
+      message: 'Error al obtener el proveedor',
+      error: error.message
+    });
+  }
+};
+
+// Actualizar condominiumId de un proveedor
+const updateSupplierCondominium = async (req, res) => {
+  try {
+    const { supplierId } = req.params;
+    const { condominiumId } = req.body;
+
+    // Verificar si el proveedor existe
+    const supplier = await Supplier.findByPk(supplierId);
+    if (!supplier) {
+      return res.status(404).json({ message: 'Proveedor no encontrado.' });
+    }
+
+    // Actualizar el condominiumId del proveedor
+    await supplier.update({ condominiumId });
+
+    // Actualizar también el condominiumId del usuario asociado
+    await User.update(
+      { condominiumId },
+      { where: { id: supplier.userId } }
+    );
+
+    res.json({
+      message: 'Condominio del proveedor actualizado exitosamente.',
+      supplier: {
+        id: supplier.id,
+        name: supplier.name,
+        condominiumId: supplier.condominiumId
+      }
+    });
+  } catch (error) {
+    console.error('Error al actualizar condominio del proveedor:', error);
+    res.status(500).json({
+      message: 'Error al actualizar el condominio del proveedor',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSupplier,
   getAllSuppliers,
@@ -520,5 +660,7 @@ module.exports = {
   updateSupplier,
   deleteSupplier,
   getSupplierByUserId,
-  adminRegister
+  adminRegister,
+  getSupplierById,
+  updateSupplierCondominium
 };

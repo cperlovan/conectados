@@ -148,10 +148,23 @@ export default function CreateReceiptsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [name]: value
+      };
+
+      // Si se cambió el mes o el año, actualizar la fecha de vencimiento
+      if (name === 'month' || name === 'year') {
+        const year = name === 'year' ? parseInt(value) : prev.year;
+        const month = name === 'month' ? parseInt(value) : prev.month;
+        // Crear fecha del último día del mes seleccionado
+        const lastDay = new Date(year, month, 0);
+        newData.dueDate = lastDay.toISOString().split('T')[0];
+      }
+
+      return newData;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -422,15 +435,24 @@ export default function CreateReceiptsPage() {
                   <label className="block text-gray-700 text-sm font-bold mb-2 flex items-center" htmlFor="dueDate">
                     <FiCalendar className="mr-2" /> Fecha de Vencimiento
                   </label>
-                  <input
-                    type="date"
-                    id="dueDate"
-                    name="dueDate"
-                    value={formData.dueDate}
-                    onChange={handleChange}
-                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    required
-                  />
+                  <div className="space-y-2">
+                    <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-md flex items-start">
+                      <FiInfo className="mr-2 mt-0.5 flex-shrink-0" />
+                      <span>
+                        Está generando recibos para <strong>{getNombreMes(formData.month)} {formData.year}</strong>. 
+                        Se recomienda establecer la fecha de vencimiento dentro de este mes para mantener la consistencia.
+                      </span>
+                    </div>
+                    <input
+                      type="date"
+                      id="dueDate"
+                      name="dueDate"
+                      value={formData.dueDate}
+                      onChange={handleChange}
+                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      required
+                    />
+                  </div>
                 </div>
                 
                 <div className="mb-4">

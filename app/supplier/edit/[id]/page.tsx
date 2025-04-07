@@ -13,11 +13,18 @@ interface ContactInfo {
   address: string;
 }
 
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  ContactInfo?: ContactInfo;
+}
+
 interface Supplier {
   id: number;
   name: string;
   type: string;
-  contactInfo: ContactInfo;
+  User?: User;
   status: "active" | "inactive";
   economicActivities: { id: number; name: string }[];
   condominiumId?: number;
@@ -43,12 +50,10 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
     id: 0,
     name: "",
     type: "individual",
-    contactInfo: {
+    User: {
+      id: 0,
       name: "",
-      lastname: "",
-      phone: "",
       email: "",
-      address: "",
     },
     status: "active",
     economicActivities: [],
@@ -151,12 +156,17 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
         name: data.name,
         type: data.type,
         status: data.status || "active",
-        contactInfo: {
-          name: data.contactInfo?.name || "",
-          lastname: data.contactInfo?.lastname || "",
-          phone: data.contactInfo?.phone || "",
-          email: data.contactInfo?.email || "",
-          address: data.contactInfo?.address || ""
+        User: {
+          id: data.User?.id || 0,
+          name: data.User?.name || "",
+          email: data.User?.email || "",
+          ContactInfo: {
+            name: data.User?.ContactInfo?.name || "",
+            lastname: data.User?.ContactInfo?.lastname || "",
+            phone: data.User?.ContactInfo?.phone || "",
+            email: data.User?.ContactInfo?.email || "",
+            address: data.User?.ContactInfo?.address || ""
+          }
         },
         economicActivities: data.economicActivities || []
       };
@@ -178,13 +188,16 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name.startsWith("contactInfo.")) {
-      const field = name.split(".")[1];
+    if (name.startsWith("User.ContactInfo.")) {
+      const field = name.split(".")[2];
       setSupplierData(prev => ({
         ...prev,
-        contactInfo: {
-          ...prev.contactInfo,
-          [field]: value
+        User: {
+          ...prev.User,
+          ContactInfo: {
+            ...prev.User?.ContactInfo,
+            [field]: value
+          }
         }
       }));
     } else {
@@ -224,7 +237,7 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
       }
 
       // Validar que al menos un campo de contacto esté lleno
-      const hasContactInfo = Object.values(supplierData.contactInfo).some(value => value && value.trim() !== "");
+      const hasContactInfo = Object.values(supplierData.User?.ContactInfo).some(value => value && value.trim() !== "");
       if (!hasContactInfo) {
         throw new Error("Debe proporcionar al menos un dato de contacto");
       }
@@ -245,7 +258,10 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
         name: supplierData.name,
         type: supplierData.type,
         status: supplierData.status,
-        contactInfo: supplierData.contactInfo,
+        User: {
+          ...supplierData.User,
+          ContactInfo: supplierData.User?.ContactInfo
+        },
         economicActivities: selectedActivities
       };
 
@@ -355,40 +371,40 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
           <input
             type="text"
             placeholder="Nombre de contacto"
-            name="contactInfo.name"
-            value={supplierData.contactInfo.name}
+            name="User.ContactInfo.name"
+            value={supplierData.User?.ContactInfo.name}
             onChange={handleChange}
             className="border border-gray-300 p-2 rounded"
           />
           <input
             type="text"
             placeholder="Apellido de contacto"
-            name="contactInfo.lastname"
-            value={supplierData.contactInfo.lastname}
+            name="User.ContactInfo.lastname"
+            value={supplierData.User?.ContactInfo.lastname}
             onChange={handleChange}
             className="border border-gray-300 p-2 rounded"
           />
           <input
             type="text"
             placeholder="Teléfono"
-            name="contactInfo.phone"
-            value={supplierData.contactInfo.phone}
+            name="User.ContactInfo.phone"
+            value={supplierData.User?.ContactInfo.phone}
             onChange={handleChange}
             className="border border-gray-300 p-2 rounded"
           />
           <input
             type="email"
             placeholder="Correo electrónico"
-            name="contactInfo.email"
-            value={supplierData.contactInfo.email}
+            name="User.ContactInfo.email"
+            value={supplierData.User?.ContactInfo.email}
             onChange={handleChange}
             className="border border-gray-300 p-2 rounded"
           />
           <input
             type="text"
             placeholder="Dirección"
-            name="contactInfo.address"
-            value={supplierData.contactInfo.address}
+            name="User.ContactInfo.address"
+            value={supplierData.User?.ContactInfo.address}
             onChange={handleChange}
             className="border border-gray-300 p-2 rounded"
           />

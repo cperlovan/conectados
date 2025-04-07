@@ -7,7 +7,7 @@ const Payment = sequelize.define('Payment', {
     allowNull: false,
   },
   method: {
-    type: DataTypes.ENUM('bank_transfer', 'credit_card', 'mobile_payment'),
+    type: DataTypes.ENUM('bank_transfer', 'credit_card', 'mobile_payment', 'credit'),
     allowNull: false,
   },
   receiptId: {
@@ -27,8 +27,9 @@ const Payment = sequelize.define('Payment', {
     },
   },
   status: {
-    type: DataTypes.ENUM('pending', 'verified', 'anuled'),
+    type: DataTypes.ENUM('pending', 'verified', 'approved', 'rejected', 'completed'),
     allowNull: false,
+    defaultValue: 'pending'
   },
   userId: {
     type: DataTypes.INTEGER,

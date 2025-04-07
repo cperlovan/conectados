@@ -207,8 +207,8 @@ export async function toggleReceiptsVisibility(
   visible: boolean,
   token: string
 ) {
-  return fetchAPI('/receipts/visibility', {
-    method: 'PUT',
+  return fetchAPI('/receipts/toggle-visibility', {
+    method: 'POST',
     body: { receiptIds, visible },
     token
   });

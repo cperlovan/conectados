@@ -17,6 +17,8 @@ import {
   FiDownload,
   FiEdit,
   FiTrash2,
+  FiSearch,
+  FiRefreshCw
 } from "react-icons/fi";
 import { 
   fetchAPI, 
@@ -28,15 +30,37 @@ import {
 import Link from "next/link";
 import ReceiptPDF from "../../components/ReceiptPDF";
 
+// Utilidad para asegurar que un valor sea número
+const ensureNumber = (value: any): number | null => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const num = parseInt(String(value));
+  return isNaN(num) ? null : num;
+};
+
 export default function ReceiptManagementPage() {
   const router = useRouter();
   const { token, userInfo, isLoading } = useToken();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState("all"); // all, pending, paid, overdue
   const [selectedReceipts, setSelectedReceipts] = useState<number[]>([]);
   const [viewMode, setViewMode] = useState<"cards" | "list">("list");
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Estado para filtros
+  const [filters, setFilters] = useState({
+    status: "all",
+    month: "all",
+    year: "all",
+    property: "all",
+    search: ""
+  });
+
+  // Estado para opciones de filtros
+  const [years, setYears] = useState<string[]>([]);
+  const [properties, setProperties] = useState<{id: number, number: string, type?: string}[]>([]);
   
   // Estado para el modal de confirmación
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -47,26 +71,89 @@ export default function ReceiptManagementPage() {
 
     try {
       setLoading(true);
+      setRefreshing(true);
       
       if (!userInfo.condominiumId && userInfo.role !== 'superadmin') {
         setError("No tienes un condominio asignado");
-        setLoading(false);
         return;
       }
       
-      // Para superadmin sin condominio asignado, usar un ID por defecto o mostrar selector
-      const condominiumId = userInfo.condominiumId || 1; // Condominio por defecto para superadmin
-      
+      const condominiumId = userInfo.condominiumId || 1;
       const data = await getReceiptsByCondominiumId(condominiumId, token);
       
       if (Array.isArray(data)) {
-        // Ensure all receipts have month and year, even if null
-        const normalizedReceipts = data.map(receipt => ({
-          ...receipt,
-          month: receipt.month || null,
-          year: receipt.year || null
-        }));
+        console.log('Datos recibidos del servidor (primeros 2 recibos):', data.slice(0, 2));
+        
+        const normalizedReceipts = data.map(receipt => {
+          // Intentar extraer mes y año de la fecha del recibo
+          let month = null;
+          let year = null;
+
+          // Intentar obtener mes y año de date si existe
+          if (receipt.date) {
+            const receiptDate = new Date(receipt.date);
+            if (!isNaN(receiptDate.getTime())) {
+              month = receiptDate.getMonth() + 1; // getMonth() devuelve 0-11
+              year = receiptDate.getFullYear();
+            }
+          }
+
+          // Si no hay date, intentar obtener de dueDate
+          if (!month && !year && receipt.dueDate) {
+            const dueDate = new Date(receipt.dueDate);
+            if (!isNaN(dueDate.getTime())) {
+              month = dueDate.getMonth() + 1;
+              year = dueDate.getFullYear();
+            }
+          }
+
+          console.log('Normalizando recibo:', {
+            id: receipt.id,
+            date: receipt.date,
+            dueDate: receipt.dueDate,
+            extractedMonth: month,
+            extractedYear: year
+          });
+          
+          return {
+            ...receipt,
+            month,
+            year
+          };
+        });
+
+        console.log('Recibos normalizados (primeros 2):', normalizedReceipts.slice(0, 2));
+        
         setReceipts(normalizedReceipts);
+
+        // Extraer años únicos
+        const uniqueYears = Array.from(new Set(
+          normalizedReceipts
+            .map(receipt => receipt.year)
+            .filter(year => year !== null)
+        )).sort((a, b) => (b || 0) - (a || 0)).map(String);
+        
+        console.log('Años únicos encontrados:', uniqueYears);
+        setYears(uniqueYears);
+
+        // Extraer propiedades únicas
+        const uniqueProperties = Array.from(
+          new Map(
+            normalizedReceipts
+              .filter(receipt => receipt.property)
+              .map(receipt => [
+                receipt.property.id,
+                {
+                  id: receipt.property.id,
+                  number: receipt.property.number,
+                  type: receipt.property.type
+                }
+              ])
+          ).values()
+        );
+        
+        console.log('Propiedades únicas encontradas:', uniqueProperties);
+        setProperties(uniqueProperties);
       } else {
         setError("Formato de respuesta inesperado");
       }
@@ -75,6 +162,7 @@ export default function ReceiptManagementPage() {
       setError(err instanceof Error ? err.message : "Error al cargar los recibos");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [token, userInfo, isLoading]);
 
@@ -85,7 +173,6 @@ export default function ReceiptManagementPage() {
     }
 
     if (token && userInfo && !isLoading) {
-      // Verificar roles permitidos: admin, superadmin
       if (!['admin', 'superadmin'].includes(userInfo.role)) {
         router.push("/unauthorized");
         return;
@@ -95,11 +182,88 @@ export default function ReceiptManagementPage() {
     }
   }, [token, userInfo, isLoading, router, loadReceipts]);
 
-  // Filtrar recibos según el filtro seleccionado
+  // Filtrar recibos según todos los filtros
   const filteredReceipts = receipts.filter(receipt => {
-    if (filter === "all") return true;
-    return receipt.status?.toLowerCase() === filter;
+    // Filtro por estado
+    if (filters.status !== "all" && receipt.status?.toLowerCase() !== filters.status) {
+      return false;
+    }
+
+    // Filtro por mes
+    if (filters.month !== "all") {
+      const filterMonth = ensureNumber(filters.month);
+      let receiptMonth = null;
+
+      // Obtener mes del recibo
+      if (receipt.month) {
+        receiptMonth = ensureNumber(receipt.month);
+      }
+
+      console.log('Comparación de meses:', {
+        filterMonth,
+        receiptMonth,
+        receiptId: receipt.id,
+        dueDate: receipt.dueDate,
+        month: receipt.month
+      });
+
+      if (receiptMonth === null || filterMonth !== receiptMonth) {
+        return false;
+      }
+    }
+
+    // Filtro por año
+    if (filters.year !== "all") {
+      const filterYear = ensureNumber(filters.year);
+      let receiptYear = null;
+
+      // Obtener año de dueDate
+      if (receipt.dueDate) {
+        const dueDate = new Date(receipt.dueDate);
+        if (!isNaN(dueDate.getTime())) {
+          receiptYear = dueDate.getFullYear();
+        }
+      }
+
+      if (receiptYear === null || filterYear !== receiptYear) {
+        return false;
+      }
+    }
+
+    // Filtro por propiedad
+    if (filters.property !== "all" && receipt.property?.id?.toString() !== filters.property) {
+      return false;
+    }
+
+    // Filtro por búsqueda
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      const propertyMatch = receipt.property?.number?.toLowerCase().includes(searchLower) || false;
+      const userMatch = receipt.User?.name?.toLowerCase().includes(searchLower) || 
+                       receipt.User?.email?.toLowerCase().includes(searchLower) || false;
+      const idMatch = receipt.id.toString().includes(searchLower);
+      
+      return propertyMatch || userMatch || idMatch;
+    }
+
+    return true;
   });
+
+  // Agregar log para ver los recibos filtrados
+  console.log('Recibos filtrados:', {
+    totalRecibos: receipts.length,
+    recibosFiltrados: filteredReceipts.length,
+    filtros: filters,
+    primerRecibo: filteredReceipts[0]
+  });
+
+  // Manejar cambios en los filtros
+  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+  };
 
   // Seleccionar/deseleccionar todos los recibos
   const toggleSelectAll = () => {
@@ -226,6 +390,13 @@ export default function ReceiptManagementPage() {
             Pendiente
           </span>
         );
+      case 'partial':
+        return (
+          <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs flex items-center">
+            <FiAlertCircle className="mr-1" />
+            Pago Parcial
+          </span>
+        );
       case 'overdue':
       case 'vencido':
         return (
@@ -281,158 +452,263 @@ export default function ReceiptManagementPage() {
     <div className="min-h-screen bg-gray-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center">
-            <FiFileText className="mr-2 text-blue-600" />
-            Gestión de Recibos
-          </h1>
-          <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
-            <Link
-              href="/receipt/management/create"
-              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md flex items-center text-sm"
-            >
-              <FiPlus className="mr-2" />
-              Generar Recibos
-            </Link>
-            {selectedReceipts.length > 0 && (
-              <>
-                <button
-                  onClick={() => handleToggleVisibility(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md flex items-center text-sm"
-                >
-                  <FiEye className="mr-2" />
-                  Publicar
-                </button>
-                <button
-                  onClick={() => handleToggleVisibility(false)}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md flex items-center text-sm"
-                >
-                  <FiEyeOff className="mr-2" />
-                  Ocultar
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
-          <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center">
-              <label htmlFor="filter" className="mr-2 text-gray-700">Filtrar por:</label>
-              <select
-                id="filter"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="border border-gray-300 rounded-md p-2"
-              >
-                <option value="all">Todos</option>
-                <option value="pending">Pendientes</option>
-                <option value="paid">Pagados</option>
-                <option value="overdue">Vencidos</option>
-              </select>
+        <div className="bg-white shadow-md rounded-lg p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold mb-2">Gestión de Recibos</h1>
+              <div className="text-gray-500 text-sm">
+                Total: <span className="font-medium">{receipts.length}</span> recibos
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded-md ${viewMode === "list" ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"}`}
+
+            <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
+              <Link
+                href="/receipt/management/create"
+                className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md flex items-center text-sm"
               >
-                Lista
-              </button>
+                <FiPlus className="mr-2" />
+                Generar Recibos
+              </Link>
               <button
-                onClick={() => setViewMode("cards")}
-                className={`p-2 rounded-md ${viewMode === "cards" ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"}`}
+                onClick={loadReceipts}
+                className="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md flex items-center text-sm"
+                disabled={refreshing}
               >
-                Tarjetas
+                <FiRefreshCw className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Actualizando...' : 'Actualizar'}
               </button>
+              {selectedReceipts.length > 0 && (
+                <>
+                  <button
+                    onClick={() => handleToggleVisibility(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md flex items-center text-sm"
+                  >
+                    <FiEye className="mr-2" />
+                    Publicar
+                  </button>
+                  <button
+                    onClick={() => handleToggleVisibility(false)}
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md flex items-center text-sm"
+                  >
+                    <FiEyeOff className="mr-2" />
+                    Ocultar
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {viewMode === "list" ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="py-3 px-4 text-left">
-                      <input
-                        type="checkbox"
-                        checked={selectedReceipts.length === filteredReceipts.length && filteredReceipts.length > 0}
-                        onChange={toggleSelectAll}
-                        className="rounded"
-                      />
-                    </th>
-                    <th className="py-3 px-4 text-left">ID</th>
-                    <th className="py-3 px-4 text-left">Usuario</th>
-                    <th className="py-3 px-4 text-left">Monto</th>
-                    <th className="py-3 px-4 text-left">Pendiente</th>
-                    <th className="py-3 px-4 text-left">Estado</th>
-                    <th className="py-3 px-4 text-left">Vencimiento</th>
-                    <th className="py-3 px-4 text-left">Visible</th>
-                    <th className="py-3 px-4 text-left">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredReceipts.length === 0 ? (
+          {/* Filtros */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center mb-3">
+              <FiFilter className="text-gray-500 mr-2" />
+              <h2 className="text-lg font-medium">Filtros</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Estado</label>
+                <select 
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                >
+                  <option value="all">Todos</option>
+                  <option value="pending">Pendientes</option>
+                  <option value="paid">Pagados</option>
+                  <option value="partial">Parciales</option>
+                  <option value="overdue">Vencidos</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Mes</label>
+                <select 
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={filters.month}
+                  onChange={(e) => handleFilterChange('month', e.target.value)}
+                >
+                  <option value="all">Todos</option>
+                  <option value="1">Enero</option>
+                  <option value="2">Febrero</option>
+                  <option value="3">Marzo</option>
+                  <option value="4">Abril</option>
+                  <option value="5">Mayo</option>
+                  <option value="6">Junio</option>
+                  <option value="7">Julio</option>
+                  <option value="8">Agosto</option>
+                  <option value="9">Septiembre</option>
+                  <option value="10">Octubre</option>
+                  <option value="11">Noviembre</option>
+                  <option value="12">Diciembre</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Año</label>
+                <select 
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={filters.year}
+                  onChange={(e) => handleFilterChange('year', e.target.value)}
+                >
+                  <option value="all">Todos</option>
+                  {years.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Propiedad</label>
+                <select 
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={filters.property}
+                  onChange={(e) => handleFilterChange('property', e.target.value)}
+                >
+                  <option value="all">Todas</option>
+                  {properties.map(property => (
+                    <option key={property.id} value={property.id}>
+                      {property.type ? `${property.type} ${property.number}` : property.number}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Buscar</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="ID, propietario, propiedad..."
+                    value={filters.search}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    className="w-full p-2 pl-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label htmlFor="viewMode" className="text-sm text-gray-600">
+                  Vista:
+                </label>
+                <select
+                  id="viewMode"
+                  value={viewMode}
+                  onChange={(e) => setViewMode(e.target.value as "cards" | "list")}
+                  className="border border-gray-300 rounded-md p-2"
+                >
+                  <option value="list">Lista</option>
+                  <option value="cards">Tarjetas</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+            {viewMode === "list" ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan={9} className="py-4 px-6 text-center text-gray-500">
-                        No se encontraron recibos
-                      </td>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input
+                          type="checkbox"
+                          checked={selectedReceipts.length === filteredReceipts.length}
+                          onChange={toggleSelectAll}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        ID
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Propiedad
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Propietario
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Monto
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fecha
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Visible
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acciones
+                      </th>
                     </tr>
-                  ) : (
-                    filteredReceipts.map((receipt) => (
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredReceipts.map((receipt) => (
                       <tr key={receipt.id} className="hover:bg-gray-50">
-                        <td className="py-3 px-4">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <input
                             type="checkbox"
                             checked={selectedReceipts.includes(receipt.id)}
                             onChange={() => toggleSelect(receipt.id)}
-                            className="rounded"
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
                         </td>
-                        <td className="py-3 px-4 font-medium">{receipt.id}</td>
-                        <td className="py-3 px-4">
-                          {receipt.Owner?.fullName || receipt.User?.name || "Usuario no disponible"}
-                          <div className="text-xs text-gray-500">{receipt.User?.email || "Email no disponible"}</div>
-                          {receipt.property && (
-                            <div className="text-xs text-gray-500">
-                              Prop: {receipt.property.number || ""} 
-                              {receipt.property.block ? ` Bloque ${receipt.property.block}` : ""}
-                              {receipt.property.floor ? ` Piso ${receipt.property.floor}` : ""}
-                              {receipt.property.type ? ` (${receipt.property.type})` : ""}
-                            </div>
-                          )}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {receipt.id}
                         </td>
-                        <td className="py-3 px-4">{formatCurrency(receipt.amount || 0)}</td>
-                        <td className="py-3 px-4">{formatCurrency(receipt.pending_amount || 0)}</td>
-                        <td className="py-3 px-4">{getStatusBadge(receipt.status)}</td>
-                        <td className="py-3 px-4">{formatDate(receipt.dueDate)}</td>
-                        <td className="py-3 px-4">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {receipt.property?.type} {receipt.property?.number}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {receipt.User?.name || receipt.User?.email || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatCurrency(receipt.amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {receipt.month && receipt.year ? `${receipt.month}/${receipt.year}` : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            receipt.status === 'paid' ? 'bg-green-100 text-green-800' :
+                            receipt.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            receipt.status === 'partial' ? 'bg-blue-100 text-blue-800' :
+                            receipt.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {receipt.status === 'paid' ? 'Pagado' :
+                             receipt.status === 'pending' ? 'Pendiente' :
+                             receipt.status === 'partial' ? 'Parcial' :
+                             receipt.status === 'overdue' ? 'Vencido' :
+                             'Desconocido'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {receipt.visible ? (
-                            <span className="text-green-600 flex items-center">
-                              <FiEye className="mr-1" /> Visible
-                            </span>
+                            <FiEye className="text-green-600" />
                           ) : (
-                            <span className="text-gray-500 flex items-center">
-                              <FiEyeOff className="mr-1" /> Oculto
-                            </span>
+                            <FiEyeOff className="text-gray-400" />
                           )}
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <Link
-                              href={`/receipt/management/edit/${receipt.id}`}
-                              className="text-blue-600 hover:text-blue-800"
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center space-x-3">
+                            <button
+                              onClick={() => router.push(`/receipt/management/edit/${receipt.id}`)}
+                              className="text-yellow-600 hover:text-yellow-900"
                               title="Editar"
                             >
                               <FiEdit />
-                            </Link>
-                            <ReceiptPDF 
-                              receipt={receipt} 
-                              buttonLabel="" 
-                              className="text-green-600 hover:text-green-800" 
-                            />
+                            </button>
                             <button
                               onClick={() => confirmDelete(receipt.id)}
-                              className="text-red-600 hover:text-red-800"
+                              className="text-red-600 hover:text-red-900"
                               title="Eliminar"
                             >
                               <FiTrash2 />
@@ -440,116 +716,114 @@ export default function ReceiptManagementPage() {
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredReceipts.length === 0 ? (
-                <div className="col-span-full text-center py-12 text-gray-500">
-                  No se encontraron recibos
-                </div>
-              ) : (
-                filteredReceipts.map((receipt) => (
-                  <div key={receipt.id} className="border rounded-lg overflow-hidden shadow-sm">
-                    <div className="p-4 border-b flex justify-between items-center">
-                      <span className="text-lg font-semibold">Recibo #{receipt.id}</span>
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedReceipts.includes(receipt.id)}
-                          onChange={() => toggleSelect(receipt.id)}
-                          className="mr-2 rounded"
-                        />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+                {filteredReceipts.map((receipt) => (
+                  <div key={receipt.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">
+                          {receipt.property?.type} {receipt.property?.number}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {receipt.User?.name || receipt.User?.email || 'N/A'}
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={selectedReceipts.includes(receipt.id)}
+                        onChange={() => toggleSelect(receipt.id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500">ID:</span>
+                        <span className="text-sm font-medium">{receipt.id}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500">Monto:</span>
+                        <span className="text-sm font-medium">{formatCurrency(receipt.amount)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500">Fecha:</span>
+                        <span className="text-sm font-medium">
+                          {receipt.month && receipt.year ? `${receipt.month}/${receipt.year}` : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-500">Estado:</span>
+                        <span className={`px-2 text-xs font-semibold rounded-full ${
+                          receipt.status === 'paid' ? 'bg-green-100 text-green-800' :
+                          receipt.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          receipt.status === 'partial' ? 'bg-blue-100 text-blue-800' :
+                          receipt.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {receipt.status === 'paid' ? 'Pagado' :
+                           receipt.status === 'pending' ? 'Pendiente' :
+                           receipt.status === 'partial' ? 'Parcial' :
+                           receipt.status === 'overdue' ? 'Vencido' :
+                           'Desconocido'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-500">Visible:</span>
                         {receipt.visible ? (
-                          <FiEye className="text-green-600" title="Visible" />
+                          <FiEye className="text-green-600" />
                         ) : (
-                          <FiEyeOff className="text-gray-500" title="Oculto" />
+                          <FiEyeOff className="text-gray-400" />
                         )}
                       </div>
                     </div>
-                    <div className="p-4">
-                      <div className="mb-2">
-                        <span className="font-semibold text-sm text-gray-600">Usuario:</span>
-                        <div>{receipt.Owner?.fullName || receipt.User?.name || "Usuario no disponible"}</div>
-                        <div className="text-xs text-gray-500">{receipt.User?.email || "Email no disponible"}</div>
-                        {receipt.property && (
-                          <div className="text-xs text-gray-500">
-                            Prop: {receipt.property.number || ""} 
-                            {receipt.property.block ? ` Bloque ${receipt.property.block}` : ""}
-                            {receipt.property.floor ? ` Piso ${receipt.property.floor}` : ""}
-                            {receipt.property.type ? ` (${receipt.property.type})` : ""}
-                          </div>
-                        )}
-                      </div>
-                      <div className="mb-2 flex justify-between">
-                        <div>
-                          <span className="font-semibold text-sm text-gray-600">Monto:</span>
-                          <div>{formatCurrency(receipt.amount || 0)}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm text-gray-600">Pendiente:</span>
-                          <div>{formatCurrency(receipt.pending_amount || 0)}</div>
-                        </div>
-                      </div>
-                      <div className="mb-2 flex justify-between">
-                        <div>
-                          <span className="font-semibold text-sm text-gray-600">Estado:</span>
-                          <div>{getStatusBadge(receipt.status)}</div>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-sm text-gray-600">Vencimiento:</span>
-                          <div>{formatDate(receipt.dueDate)}</div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-gray-50 p-3 flex justify-end space-x-2">
-                      <Link
-                        href={`/receipt/management/edit/${receipt.id}`}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                    
+                    <div className="mt-4 flex justify-end space-x-2">
+                      <button
+                        onClick={() => router.push(`/receipt/management/edit/${receipt.id}`)}
+                        className="p-1 text-yellow-600 hover:text-yellow-900"
                         title="Editar"
                       >
                         <FiEdit />
-                      </Link>
-                      <ReceiptPDF 
-                        receipt={receipt} 
-                        buttonLabel="" 
-                        className="p-2 text-green-600 hover:bg-green-50 rounded" 
-                      />
+                      </button>
                       <button
                         onClick={() => confirmDelete(receipt.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        className="p-1 text-red-600 hover:text-red-900"
                         title="Eliminar"
                       >
                         <FiTrash2 />
                       </button>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Modal de confirmación para eliminar */}
+      {/* Modal de confirmación de eliminación */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Confirmar eliminación</h3>
-            <p className="mb-6">¿Estás seguro que deseas eliminar este recibo? Esta acción no se puede deshacer.</p>
-            <div className="flex justify-end space-x-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Confirmar eliminación</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              ¿Estás seguro de que deseas eliminar este recibo? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-end space-x-3">
               <button
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
                 onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md"
               >
                 Cancelar
               </button>
               <button
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                 onClick={handleDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md"
               >
                 Eliminar
               </button>

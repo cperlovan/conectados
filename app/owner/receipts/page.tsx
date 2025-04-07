@@ -377,7 +377,9 @@ export default function OwnerReceipts() {
                           >
                             <FiDownload size={14} />
                           </button>
-                          {(receipt.status?.toLowerCase() === 'pending' || receipt.status?.toLowerCase() === 'pendiente') && (
+                          {(receipt.status?.toLowerCase() === 'pending' || 
+                            receipt.status?.toLowerCase() === 'pendiente' ||
+                            receipt.status?.toLowerCase() === 'partial') && (
                             <Link
                               href={`/payment/new?receiptId=${receipt.id}`}
                               className="text-indigo-600 hover:text-indigo-900"

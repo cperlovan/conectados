@@ -17,10 +17,21 @@ interface Budget {
     id: number;
     name: string;
   }>;
-  budgetSupplier?: {
+  supplier?: {
     id: number;
     name: string;
+    type: string;
     userId: number;
+    condominiumId: number;
+    User?: {
+      id: number;
+      name: string;
+      email: string;
+      ContactInfo?: {
+        name: string;
+        lastname: string;
+      };
+    };
   };
 }
 
@@ -43,7 +54,6 @@ export default function NewInvoice() {
 
       try {
         // 1. Obtener el proveedor por ID de usuario
-        console.log("Consultando proveedor para el usuario:", userInfo.id);
         const supplierResponse = await fetch(
           `http://localhost:3040/api/suppliers/user/${userInfo.id}`,
           {
@@ -59,14 +69,12 @@ export default function NewInvoice() {
         }
 
         const supplierData = await supplierResponse.json();
-        console.log("Datos del proveedor:", supplierData);
         
         if (!supplierData || !supplierData.id) {
           throw new Error("No se encontró el ID del proveedor");
         }
         
         // 2. Obtener presupuestos usando el ID del proveedor
-        console.log("Consultando presupuestos para el proveedor ID:", supplierData.id);
         const budgetsResponse = await fetch(
           `http://localhost:3040/api/budgets/supplier/${supplierData.id}`,
           {
@@ -82,35 +90,17 @@ export default function NewInvoice() {
         }
         
         const data = await budgetsResponse.json();
-        console.log("Presupuestos recibidos:", data);
         
-        // Mostrar el estado de cada presupuesto
-        if (Array.isArray(data)) {
-          data.forEach((budget, index) => {
-            console.log(`Presupuesto ${index + 1} - ID: ${budget.id}, Título: ${budget.title}, Estado: ${budget.status || 'sin estado'}`);
-          });
-        }
-        
-        // Filtrar solo presupuestos aprobados (podría ser que el campo status tenga un valor diferente)
-        let approvedBudgets = Array.isArray(data) 
-          ? data.filter((b: Budget) => {
-              const isApproved = b.status === "approved";
-              console.log(`Presupuesto ${b.id} es aprobado: ${isApproved}`);
-              return isApproved;
+        // Filtrar solo presupuestos aprobados (comparación case-insensitive)
+        let approvedBudgets = Array.isArray(data?.budgets) 
+          ? data.budgets.filter((b: Budget) => {
+              const budgetStatus = (b.status || '').toLowerCase();
+              return budgetStatus === "approved" || budgetStatus === "aprobado";
             }) 
           : [];
         
-        console.log("Presupuestos aprobados:", approvedBudgets.length);
-        
-        // Si no hay presupuestos aprobados, mostrar todos los presupuestos
-        if (approvedBudgets.length === 0 && Array.isArray(data) && data.length > 0) {
-          console.log("No hay presupuestos aprobados, mostrando todos los presupuestos disponibles");
-          approvedBudgets = data;
-        }
-        
         setBudgets(approvedBudgets);
       } catch (error) {
-        console.error("Error completo:", error);
         setError(error instanceof Error ? error.message : "Error al cargar los presupuestos");
       } finally {
         setLoading(false);
@@ -132,7 +122,6 @@ export default function NewInvoice() {
       const budgetId = parseInt(value, 10);
       const selectedBudget = budgets.find((b) => b.id === budgetId);
       if (selectedBudget) {
-        console.log("Presupuesto seleccionado:", selectedBudget);
         setFormData((prev) => ({
           ...prev,
           amount: typeof selectedBudget.amount === 'number' 
@@ -149,25 +138,68 @@ export default function NewInvoice() {
     setSaving(true);
 
     try {
+      // Verificar que el usuario sea proveedor
+      if (!userInfo?.role || userInfo.role.toLowerCase() !== 'proveedor') {
+        throw new Error('No tienes permisos para crear facturas. Solo los proveedores pueden crear facturas.');
+      }
+
+      // Primero obtener el ID del proveedor
+      const supplierResponse = await fetch(
+        `http://localhost:3040/api/suppliers/user/${userInfo?.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "X-User-Role": "proveedor"
+          },
+        }
+      );
+
+      if (!supplierResponse.ok) {
+        throw new Error("Error al obtener la información del proveedor");
+      }
+
+      const supplierData = await supplierResponse.json();
+      console.log("Datos del proveedor para la factura:", supplierData);
+
+      if (!supplierData || !supplierData.id) {
+        throw new Error("No se encontró la información del proveedor");
+      }
+
+      // Preparar los datos de la factura
       const response = await fetch("http://localhost:3040/api/invoices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
+          "X-User-Role": "proveedor"
         },
         body: JSON.stringify({
-          ...formData,
-          amount: parseFloat(formData.amount),
+          budgetId: Number(formData.budgetId),
+          number: formData.number,
+          amount: Number(formData.amount),
+          supplierId: Number(supplierData.id)
         }),
       });
 
+      console.log("Respuesta del servidor:", {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Error al crear la factura");
+        const errorData = await response.json();
+        console.error("Error detallado:", errorData);
+        throw new Error(errorData.message || "Error al crear la factura");
       }
+
+      const responseData = await response.json();
+      console.log("Respuesta exitosa:", responseData);
 
       router.push("/supplier/invoices");
     } catch (error: any) {
+      console.error("Error completo:", error);
       setError(error.message);
     } finally {
       setSaving(false);

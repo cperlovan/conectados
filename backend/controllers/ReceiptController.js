@@ -1,6 +1,7 @@
 const Receipt = require('../models/Receipt');
 const Property = require('../models/Property');
 const Expense = require('../models/Expense');
+const Payment = require('../models/Payment');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -22,7 +23,12 @@ exports.createReceipt = async (req, res) => {
     const currentYear = year || new Date().getFullYear(); // Usar año proporcionado o actual
     console.log(`Mes para calcular gastos: ${currentMonth}, Año: ${currentYear}`);
 
-    // Obtener todas las propiedades del condominio con sus owners
+    // Calcular la fecha de vencimiento correcta basada en el mes y año del recibo
+    const calculatedDueDate = new Date(currentYear, currentMonth, 0); // Último día del mes correspondiente
+    const dueDateToUse = calculatedDueDate.toISOString().split('T')[0];
+    console.log(`Fecha de vencimiento calculada: ${dueDateToUse}`);
+
+    // Obtener todas las propiedades del condominio con sus owners y el crédito disponible
     const properties = await Property.findAll({
       where: { 
         condominiumId,
@@ -39,7 +45,7 @@ exports.createReceipt = async (req, res) => {
             {
               model: require('../models/User'),
               as: 'user',
-              attributes: ['id', 'name', 'email']
+              attributes: ['id', 'name', 'email', 'credit_amount']
             }
           ]
         }
@@ -169,7 +175,7 @@ exports.createReceipt = async (req, res) => {
         quota = parseFloat(property.aliquot);
       } else {
         console.log(`Propiedad ${property.id} no tiene alícuota asignada. Saltando.`);
-        continue; // Saltar propiedades sin alícuota
+        continue;
       }
       
       if (isNaN(quota)) {
@@ -179,32 +185,63 @@ exports.createReceipt = async (req, res) => {
       
       const individualAmount = (totalExpenses * quota) / 100;
       console.log(`Calculando monto para propiedad ${property.id}: (${totalExpenses} * ${quota}) / 100 = ${individualAmount}`);
-      console.log(`Asignando recibo de propiedad ID ${property.id} al Owner ID ${property.owner.id} con Usuario ID ${property.owner.user.id} (${property.owner.user.name || property.owner.user.email})`);
+      
+      // Obtener el crédito disponible del usuario
+      const userCreditAmount = parseFloat(property.owner.user.credit_amount || 0);
+      console.log(`Crédito disponible para usuario ${property.owner.user.id}: ${userCreditAmount}`);
+
+      // Determinar el estado inicial y monto pendiente basado en el crédito disponible
+      let initialStatus = status || 'pending';
+      let initialPendingAmount = individualAmount;
+      let usedCredit = 0;
+
+      // Si hay suficiente crédito, marcar como pagado y crear un pago automático
+      if (userCreditAmount >= individualAmount) {
+        initialStatus = 'paid';
+        initialPendingAmount = 0;
+        usedCredit = individualAmount;
+        console.log(`Aplicando crédito automáticamente: ${usedCredit} de ${userCreditAmount}`);
+      }
 
       const receipt = await Receipt.create({
         amount: individualAmount,
-        dueDate,
-        userId: property.owner.user.id, // Usar el ID del usuario asociado al propietario
-        propertyId: property.id, // Asociar el recibo con la propiedad específica
+        dueDate: dueDateToUse,
+        userId: property.owner.user.id,
+        propertyId: property.id,
         condominiumId,
-        pending_amount: individualAmount, // Inicializar el saldo pendiente con el monto individual
-        status: status || 'pending', // Usar el estado proporcionado o 'pending' por defecto
+        pending_amount: initialPendingAmount,
+        status: initialStatus,
         month: currentMonth,
         year: currentYear,
-        visible: false // Los recibos se crean ocultos por defecto, el admin debe hacerlos visibles
+        visible: false,
+        credit_balance: Math.max(0, userCreditAmount - usedCredit)
       });
-      
-      console.log(`Recibo creado: ID ${receipt.id}, Usuario ID ${receipt.userId}, Propiedad ID ${receipt.propertyId}`);
-      
-      // Verificación adicional para confirmar que el recibo se creó correctamente con los IDs correctos
-      console.log(`VERIFICACIÓN: Recibo ID ${receipt.id}:`);
-      console.log(`- Asignado a Usuario ID ${receipt.userId} (esperado: ${property.owner.user.id})`);
-      console.log(`- Para Propiedad ID ${receipt.propertyId} (esperado: ${property.id})`);
-      console.log(`- En Condominio ID ${receipt.condominiumId} (esperado: ${condominiumId})`);
-      if (receipt.userId !== property.owner.user.id || receipt.propertyId !== property.id || receipt.condominiumId != condominiumId) {
-        console.log(`⚠️ ADVERTENCIA: Inconsistencia en la asignación del recibo ${receipt.id}!`);
-      }
 
+      // Si se usó crédito, crear un pago automático
+      if (usedCredit > 0) {
+        const payment = await Payment.create({
+          amount: receipt.amount,
+          method: 'credit',
+          status: 'approved',
+          userId: receipt.userId,
+          receiptId: receipt.id,
+          condominiumId: receipt.condominiumId,
+          payment_details: {
+            automatic: true,
+            credit_applied: receipt.amount,
+            date: new Date(),
+            notes: 'Pago automático con crédito disponible'
+          }
+        });
+
+        console.log(`Pago automático creado: ID ${payment.id}, Monto ${usedCredit}`);
+
+        // Actualizar el crédito del usuario
+        await property.owner.user.update({
+          credit_amount: userCreditAmount - usedCredit
+        });
+      }
+      
       receipts.push(receipt);
     }
 
@@ -408,28 +445,30 @@ exports.deleteReceipt = async (req, res) => {
 // Obtener un recibo específico por ID
 exports.getReceiptById = async (req, res) => {
   const { id } = req.params;
+  const userRole = req.user?.role;
+  const userId = req.user?.id;
 
   try {
     const receipt = await Receipt.findByPk(id, {
       include: [
         {
-          model: Property, // Incluir información de la propiedad
+          model: Property,
           as: 'property',
           attributes: ['id', 'number', 'block', 'floor', 'type', 'aliquot'],
           include: [
             {
-              model: require('../models/Owner'), // Incluir información del propietario
+              model: require('../models/Owner'),
               as: 'owner',
               attributes: ['id', 'fullName', 'phone', 'mobile']
             }
           ]
         },
         {
-          model: require('../models/Condominium'), // Incluir información del condominio
+          model: require('../models/Condominium'),
           attributes: ['id', 'name'],
         },
         {
-          model: require('../models/User'), // Incluir información del usuario
+          model: require('../models/User'),
           attributes: ['id', 'name', 'email'],
         }
       ]
@@ -438,6 +477,53 @@ exports.getReceiptById = async (req, res) => {
     if (!receipt) {
       return res.status(404).json({ message: 'Recibo no encontrado.' });
     }
+
+    // Verificar permisos basados en el rol
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+      // Si es copropietario, verificar que el recibo le pertenezca
+      if (receipt.userId !== userId) {
+        return res.status(403).json({ message: 'No tienes permiso para ver este recibo.' });
+      }
+    }
+
+    // Obtener los pagos asociados al recibo para calcular el monto pendiente real
+    const Payment = require('../models/Payment');
+    const payments = await Payment.findAll({
+      where: {
+        receiptId: receipt.id,
+        status: ['verified', 'approved'] // Solo considerar pagos verificados o aprobados
+      }
+    });
+
+    // Calcular el monto total pagado
+    const totalPaid = payments.reduce((sum, payment) => {
+      return sum + parseFloat(payment.amount);
+    }, 0);
+
+    // Calcular el monto pendiente real
+    const realPendingAmount = Math.max(0, parseFloat(receipt.amount) - totalPaid);
+
+    // Actualizar el pending_amount y status si es necesario
+    if (receipt.pending_amount !== realPendingAmount) {
+      receipt.pending_amount = realPendingAmount;
+      if (realPendingAmount === 0) {
+        receipt.status = 'paid';
+      } else if (realPendingAmount < receipt.amount) {
+        receipt.status = 'partial';
+      }
+      await receipt.save();
+    }
+
+    console.log('Detalles del recibo solicitado:', {
+      id: receipt.id,
+      amount: receipt.amount,
+      totalPaid,
+      pending_amount: realPendingAmount,
+      status: receipt.status,
+      userId: receipt.userId,
+      requestingUserId: userId,
+      requestingUserRole: userRole
+    });
 
     res.status(200).json(receipt);
   } catch (error) {
@@ -448,13 +534,17 @@ exports.getReceiptById = async (req, res) => {
 
 // Cambiar la visibilidad de uno o varios recibos
 exports.toggleVisibility = async (req, res) => {
+  console.log('Recibida petición para cambiar visibilidad:', req.body);
   const { receiptIds, visible } = req.body;
 
   if (!receiptIds || !Array.isArray(receiptIds) || receiptIds.length === 0) {
+    console.log('Error: receiptIds inválidos:', receiptIds);
     return res.status(400).json({ message: 'Se requiere un array de IDs de recibos.' });
   }
 
   try {
+    console.log(`Intentando actualizar visibilidad de recibos: ${receiptIds.join(', ')} a ${visible}`);
+    
     // Verificar que todos los IDs existan
     const receipts = await Receipt.findAll({
       where: { id: { [Op.in]: receiptIds } }
@@ -463,6 +553,7 @@ exports.toggleVisibility = async (req, res) => {
     if (receipts.length !== receiptIds.length) {
       const foundIds = receipts.map(r => r.id);
       const missingIds = receiptIds.filter(id => !foundIds.includes(id));
+      console.log('IDs no encontrados:', missingIds);
       return res.status(404).json({ 
         message: 'Algunos recibos no fueron encontrados.', 
         missingIds 

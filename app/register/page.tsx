@@ -2,78 +2,24 @@
 import { useState, useEffect, useRef } from "react";
 import React from "react";
 import { useRouter } from 'next/navigation';
+import { FiAlertCircle, FiMail, FiLock, FiUser, FiHome } from 'react-icons/fi';
+import { CondominiumSelector } from '../components/CondominiumSelector'
+import { CondominiumSelector as CondominiumType } from '../types/condominium'
 
-interface Condominio {
-  id: number;
-  name: string;
-}
-
-export default function page() {
+const RegisterPage = () => {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("copropietario");
-  const [error, setError] = useState("");
-  const [condominios, setCondominios] = useState<Condominio[]>([]);
-  const [selectedCondominio, setSelectedCondominio] = useState<Condominio | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Cargar la lista de condominios al montar el componente
-  useEffect(() => {
-    const fetchCondominios = async () => {
-      try {
-        const response = await fetch("http://localhost:3040/api/condominium", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Error al cargar los condominios");
-        }
-
-        const data = await response.json();
-        setCondominios(data);
-      } catch (error) {
-        console.error("Error al cargar condominios:", error);
-        setError("Error al cargar la lista de condominios");
-      }
-    };
-
-    fetchCondominios();
-  }, []);
-
-  // Cerrar el dropdown cuando se hace clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Filtrar condominios basado en el término de búsqueda
-  const filteredCondominios = condominios.filter(condominio =>
-    condominio.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleCondominioSelect = (condominio: Condominio) => {
-    setSelectedCondominio(condominio);
-    setSearchTerm(condominio.name);
-    setShowDropdown(false);
-  };
+  const [role, setRole] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCondominium, setSelectedCondominium] = useState<CondominiumType | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedCondominio) {
+    if (!selectedCondominium) {
       setError("Por favor, seleccione un condominio");
       return;
     }
@@ -82,6 +28,8 @@ export default function page() {
       setError("Las contraseñas no coinciden");
       return;
     }
+
+    setLoading(true);
 
     try {
       const response = await fetch("http://localhost:3040/api/auth/register", {
@@ -96,11 +44,10 @@ export default function page() {
           password, 
           role,
           status: 'active',
-          condominiumId: selectedCondominio.id
+          condominiumId: selectedCondominium.id
         }),
       });
 
-      // Imprimir detalles de la respuesta para debugging
       console.log("Status:", response.status);
       console.log("Status Text:", response.statusText);
 
@@ -126,144 +73,155 @@ export default function page() {
     } catch (error) {
       console.error("Error completo:", error);
       setError(error instanceof Error ? error.message : "Error al registrarse. Por favor, intente nuevamente.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const redirectLogin = () => {
     router.push('/login');
   };
- 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-green-100">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-96">
-        <h3 className="text-2xl font-bold mb-2 text-center text-gray-800">elcondominio.ve</h3>
-        <h4 className="text-lg mb-6 text-center text-gray-600">Registro de Usuario</h4>
-        
-        {error && (
-          <div className="mb-4 p-4 rounded-md bg-red-50 border border-red-200">
-            <p className="text-red-600 text-sm text-center">{error}</p>
-          </div>
-        )}
 
-        <form onSubmit={handleRegister} className="space-y-6">
-          {/* Búsqueda de Condominio */}
-          <div className="relative" ref={dropdownRef}>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-800 mb-1">
-              Buscar Condominio:
-            </label>
-            <div className="relative">
-              <input
-                id="name"
-                name="name"
-                type="text"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setShowDropdown(true);
-                }}
-                onFocus={() => setShowDropdown(true)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900 placeholder-gray-500"
-                placeholder="Escriba para buscar un condominio..."
-                required
-              />
-              {showDropdown && filteredCondominios.length > 0 && (
-                <div className="absolute z-10  text-gray-900 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                  {filteredCondominios.map((condominio) => (
-                    <div
-                      key={condominio.id}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => handleCondominioSelect(condominio)}
-                    >
-                      {condominio.name}
-                    </div>
-                  ))}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-md mx-auto">
+          <div className="bg-white shadow-xl rounded-2xl p-8">
+            <div className="text-center mb-8">
+              <h1 className="text-2xl font-bold text-gray-800">elcondominio.ve</h1>
+              <p className="text-gray-600 mt-2">Registro de Usuario</p>
+            </div>
+
+            {error && (
+              <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+                <div className="flex items-center">
+                  <FiAlertCircle className="text-red-500 mr-2" />
+                  <p className="text-red-600 text-sm">{error}</p>
                 </div>
-              )}
+              </div>
+            )}
+
+            <form onSubmit={handleRegister} className="space-y-6">
+              <div>
+                <CondominiumSelector
+                  onSelect={setSelectedCondominium}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Correo Electrónico
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiMail className="text-gray-400" />
+                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="correo@ejemplo.com"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiLock className="text-gray-400" />
+                    </div>
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="********"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirmar Contraseña
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiLock className="text-gray-400" />
+                    </div>
+                    <input
+                      type="password"
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="********"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de Usuario
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiUser className="text-gray-400" />
+                    </div>
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">Selecciona un rol</option>
+                      <option value="copropietario">Copropietario</option>
+                      <option value="ocupante">Inquilino</option>
+                      <option value="proveedor">Proveedor</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></div>
+                    Registrando...
+                  </div>
+                ) : (
+                  'Registrarse'
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                ¿Ya tienes una cuenta?{' '}
+                <button
+                  onClick={redirectLogin}
+                  className="text-blue-600 hover:text-blue-700 font-medium hover:underline focus:outline-none"
+                >
+                  Inicia sesión aquí
+                </button>
+              </p>
             </div>
           </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-800 mb-1">
-              Email:
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900 placeholder-gray-500"
-              placeholder="correo@ejemplo.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-800 mb-1">
-              Contraseña:
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900 placeholder-gray-500"
-              placeholder="********"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-800 mb-1">
-              Confirmar Contraseña:
-            </label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900 placeholder-gray-500"
-              placeholder="********"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1">
-              Tipo de Usuario:
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-gray-900"
-            >
-              <option value="copropietario">Copropietario</option>
-              <option value="administrativo">Asistente administrativo</option>
-              <option value="ocupante">Inquilino</option>
-              <option value="proveedor">Proveedor</option>
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
-          >
-            Registrar
-          </button>
-        </form>
-
-        <p className="text-sm text-center mt-6 text-gray-600">
-          ¿Ya tienes una cuenta?{" "}
-          <button
-            onClick={redirectLogin}
-            className="text-green-600 hover:text-green-700 font-medium hover:underline focus:outline-none"
-          >
-            Iniciar sesión
-          </button>
-        </p>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default RegisterPage;
