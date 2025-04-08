@@ -15,15 +15,13 @@ const Budget = require('./models/Budget');
 const Invoice = require('./models/Invoice');
 const Owner = require('./models/Owner');
 const BudgetEconomicActivity = require('./models/BudgetEconomicActivity');
-const ContactInfo = require('./models/ContactInfo');
+const BudgetRequest = require('./models/BudgetRequest');
+const BudgetRequestSupplier = require('./models/BudgetRequestSupplier');
+const BudgetRequestEconomicActivity = require('./models/BudgetRequestEconomicActivity');
 
 // Relaciones 
 Condominium.hasMany(User, { foreignKey: 'condominiumId' });
 User.belongsTo(Condominium, { foreignKey: 'condominiumId' });
-
-// Relación entre User y ContactInfo
-User.hasOne(ContactInfo, { foreignKey: 'userId' });
-ContactInfo.belongsTo(User, { foreignKey: 'userId' });
 
 User.hasMany(Receipt, { foreignKey: 'userId' });
 Receipt.belongsTo(User, { foreignKey: 'userId' });
@@ -181,6 +179,58 @@ Property.hasMany(Receipt, {
   as: 'receipts'
 });
 
+// Relaciones entre BudgetRequest y Condominium
+BudgetRequest.belongsTo(Condominium, {
+  as: 'condominium',
+  foreignKey: 'condominiumId'
+});
+
+Condominium.hasMany(BudgetRequest, {
+  as: 'budgetRequests',
+  foreignKey: 'condominiumId'
+});
+
+// Relaciones entre BudgetRequest y Supplier
+BudgetRequest.belongsToMany(Supplier, {
+  through: BudgetRequestSupplier,
+  as: 'suppliers',
+  foreignKey: 'budgetRequestId',
+  otherKey: 'supplierId'
+});
+
+Supplier.belongsToMany(BudgetRequest, {
+  through: BudgetRequestSupplier,
+  as: 'budgetRequests',
+  foreignKey: 'supplierId',
+  otherKey: 'budgetRequestId'
+});
+
+// Relaciones entre BudgetRequest y EconomicActivity
+BudgetRequest.belongsToMany(EconomicActivity, {
+  through: BudgetRequestEconomicActivity,
+  as: 'economicActivities',
+  foreignKey: 'budgetRequestId',
+  otherKey: 'economicActivityId'
+});
+
+EconomicActivity.belongsToMany(BudgetRequest, {
+  through: BudgetRequestEconomicActivity,
+  as: 'budgetRequests',
+  foreignKey: 'economicActivityId',
+  otherKey: 'budgetRequestId'
+});
+
+// Relación entre BudgetRequest y Budget
+BudgetRequest.hasMany(Budget, {
+  foreignKey: 'budgetRequestId',
+  as: 'budgets'
+});
+
+Budget.belongsTo(BudgetRequest, {
+  foreignKey: 'budgetRequestId',
+  as: 'budgetRequest'
+});
+
 module.exports = {
   User,
   Condominium,
@@ -198,5 +248,7 @@ module.exports = {
   Owner,
   Property,
   BudgetEconomicActivity,
-  ContactInfo
+  BudgetRequest,
+  BudgetRequestSupplier,
+  BudgetRequestEconomicActivity
 };

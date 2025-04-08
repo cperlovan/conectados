@@ -6,17 +6,18 @@ import { useToken } from "../../../hook/useToken";
 import Header from "../../../components/Header";
 
 interface ContactInfo {
-  name: string;
-  lastname: string;
-  phone: string;
-  email: string;
-  address: string;
+  name?: string;
+  lastname?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  website?: string;
 }
 
 interface User {
   id: number;
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
   ContactInfo?: ContactInfo;
 }
 
@@ -24,10 +25,10 @@ interface Supplier {
   id: number;
   name: string;
   type: string;
-  User?: User;
-  status: "active" | "inactive";
-  economicActivities: { id: number; name: string }[];
+  User: User;
   condominiumId?: number;
+  economicActivities?: string[];
+  status?: "active" | "inactive";
 }
 
 interface EconomicActivity {
@@ -150,33 +151,22 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
 
       const activitiesData = await activitiesResponse.json();
 
-      // Mapear los datos al formato esperado
-      const mappedSupplier = {
-        id: data.id,
+      // Actualizar el estado con los datos del proveedor
+      setSupplierData((prev: Supplier) => ({
+        ...prev,
         name: data.name,
         type: data.type,
         status: data.status || "active",
         User: {
-          id: data.User?.id || 0,
-          name: data.User?.name || "",
-          email: data.User?.email || "",
-          ContactInfo: {
-            name: data.User?.ContactInfo?.name || "",
-            lastname: data.User?.ContactInfo?.lastname || "",
-            phone: data.User?.ContactInfo?.phone || "",
-            email: data.User?.ContactInfo?.email || "",
-            address: data.User?.ContactInfo?.address || ""
-          }
+          ...prev.User,
+          ContactInfo: data.User?.ContactInfo || {}
         },
         economicActivities: data.economicActivities || []
-      };
-
-      setActivities(activitiesData);
-      setSupplierData(mappedSupplier);
+      }));
       
       // Establecer las actividades seleccionadas
-      if (mappedSupplier.economicActivities && mappedSupplier.economicActivities.length > 0) {
-        const selectedIds = mappedSupplier.economicActivities.map((activity: { id: number; name: string }) => activity.id);
+      if (data.economicActivities && data.economicActivities.length > 0) {
+        const selectedIds = data.economicActivities.map((activity: { id: number; name: string }) => activity.id);
         setSelectedActivities(selectedIds);
       }
     } catch (err) {
@@ -237,13 +227,14 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
       }
 
       // Validar que al menos un campo de contacto esté lleno
-      const hasContactInfo = Object.values(supplierData.User?.ContactInfo).some(value => value && value.trim() !== "");
+      const contactInfo = supplierData.User?.ContactInfo || {};
+      const hasContactInfo = Object.values(contactInfo).some(value => value && value.trim() !== "");
       if (!hasContactInfo) {
         throw new Error("Debe proporcionar al menos un dato de contacto");
       }
 
       // Validar que se seleccione al menos una actividad económica
-      if (selectedActivities.length === 0) {
+      if (!supplierData.economicActivities?.length) {
         throw new Error("Debe seleccionar al menos una actividad económica");
       }
 
@@ -254,18 +245,20 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
       }
 
       // Preparar los datos para enviar
-      const dataToSend = {
+      const formData = {
         name: supplierData.name,
         type: supplierData.type,
-        status: supplierData.status,
-        User: {
-          ...supplierData.User,
-          ContactInfo: supplierData.User?.ContactInfo
-        },
-        economicActivities: selectedActivities
+        status: supplierData.status || "active",
+        economicActivities: supplierData.economicActivities,
+        contactInfo: {
+          phone: supplierData.User?.ContactInfo?.phone || "",
+          email: supplierData.User?.ContactInfo?.email || "",
+          address: supplierData.User?.ContactInfo?.address || "",
+          website: supplierData.User?.ContactInfo?.website || ""
+        }
       };
 
-      console.log("Datos a enviar:", dataToSend);
+      console.log("Datos a enviar:", formData);
       
       const response = await fetch(`http://localhost:3040/api/suppliers/${numericId}`, {
         method: "PUT",
@@ -273,7 +266,7 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(dataToSend),
+        body: JSON.stringify(formData),
       });
 
       const contentType = response.headers.get("content-type");
@@ -345,72 +338,77 @@ export default function EditSupplierPage({ params }: { params: { id: string } })
         )}
         
         <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-          <input
-            type="text"
-            placeholder="Nombre del proveedor"
-            name="name"
-            value={supplierData.name}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded"
-            required
-          />
-          <select
-            name="type"
-            value={supplierData.type}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded"
-            required
-          >
-            <option value="individual">Individual</option>
-            <option value="company">Empresa</option>
-          </select>
-
-          <div className="border-t border-gray-300 my-4">
-            <h3 className="font-bold mb-2">Información de Contacto</h3>
+          <div className="bg-white p-4 rounded shadow mb-4">
+            <h2 className="text-lg font-semibold mb-2">Información de la Empresa</h2>
+            <input
+              type="text"
+              placeholder="Nombre de la empresa"
+              name="name"
+              value={supplierData.name}
+              onChange={handleChange}
+              className="border border-gray-300 p-2 rounded w-full mb-2"
+              required
+            />
+            <select
+              name="type"
+              value={supplierData.type}
+              onChange={handleChange}
+              className="border border-gray-300 p-2 rounded w-full"
+              required
+            >
+              <option value="individual">Individual</option>
+              <option value="company">Empresa</option>
+            </select>
           </div>
-          <input
-            type="text"
-            placeholder="Nombre de contacto"
-            name="User.ContactInfo.name"
-            value={supplierData.User?.ContactInfo.name}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded"
-          />
-          <input
-            type="text"
-            placeholder="Apellido de contacto"
-            name="User.ContactInfo.lastname"
-            value={supplierData.User?.ContactInfo.lastname}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded"
-          />
-          <input
-            type="text"
-            placeholder="Teléfono"
-            name="User.ContactInfo.phone"
-            value={supplierData.User?.ContactInfo.phone}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded"
-          />
-          <input
-            type="email"
-            placeholder="Correo electrónico"
-            name="User.ContactInfo.email"
-            value={supplierData.User?.ContactInfo.email}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded"
-          />
-          <input
-            type="text"
-            placeholder="Dirección"
-            name="User.ContactInfo.address"
-            value={supplierData.User?.ContactInfo.address}
-            onChange={handleChange}
-            className="border border-gray-300 p-2 rounded"
-          />
 
-          <div className="mt-4">
-            <h3 className="font-bold mb-2">Actividades Económicas</h3>
+          <div className="bg-white p-4 rounded shadow mb-4">
+            <h2 className="text-lg font-semibold mb-2">Información de Contacto</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Nombre de contacto"
+                name="User.ContactInfo.name"
+                value={supplierData.User?.ContactInfo?.name || ''}
+                onChange={handleChange}
+                className="border border-gray-300 p-2 rounded"
+              />
+              <input
+                type="text"
+                placeholder="Apellido de contacto"
+                name="User.ContactInfo.lastname"
+                value={supplierData.User?.ContactInfo?.lastname || ''}
+                onChange={handleChange}
+                className="border border-gray-300 p-2 rounded"
+              />
+              <input
+                type="text"
+                placeholder="Teléfono"
+                name="User.ContactInfo.phone"
+                value={supplierData.User?.ContactInfo?.phone || ''}
+                onChange={handleChange}
+                className="border border-gray-300 p-2 rounded"
+              />
+              <input
+                type="email"
+                placeholder="Correo electrónico"
+                name="User.ContactInfo.email"
+                value={supplierData.User?.ContactInfo?.email || ''}
+                onChange={handleChange}
+                className="border border-gray-300 p-2 rounded"
+              />
+              <input
+                type="text"
+                placeholder="Dirección"
+                name="User.ContactInfo.address"
+                value={supplierData.User?.ContactInfo?.address || ''}
+                onChange={handleChange}
+                className="border border-gray-300 p-2 rounded md:col-span-2"
+              />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded shadow mb-4">
+            <h2 className="text-lg font-semibold mb-2">Actividades Económicas</h2>
             <div className="grid grid-cols-2 gap-2">
               {activities.map(activity => (
                 <label key={activity.id} className="flex items-center space-x-2">

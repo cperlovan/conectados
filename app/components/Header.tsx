@@ -110,6 +110,7 @@ export default function Header() {
                     <Link href="/supplier/dashboard" className="block px-4 py-2 hover:bg-gray-100">Dashboard</Link>
                     <Link href="/supplier/profile" className="block px-4 py-2 hover:bg-gray-100">Mi Perfil</Link>
                     <Link href="/supplier/budgets" className="block px-4 py-2 hover:bg-gray-100">Presupuestos</Link>
+                    <Link href="/supplier/budget-requests" className="block px-4 py-2 hover:bg-gray-100">Solicitudes de Presupuesto</Link>
                     <Link href="/supplier/invoices" className="block px-4 py-2 hover:bg-gray-100">Facturas</Link>
                   </div>
                 )}
@@ -151,6 +152,22 @@ export default function Header() {
                       <Link href="/supplier/admin-register" className="block px-4 py-2 hover:bg-gray-100">Registrar Proveedor</Link>
                       <Link href="/supplier/budgets" className="block px-4 py-2 hover:bg-gray-100">Presupuestos</Link>
                       <Link href="/supplier/invoices" className="block px-4 py-2 hover:bg-gray-100">Facturas</Link>
+                    </div>
+                  )}
+                </div>
+
+                {/* Solicitudes de Presupuesto */}
+                <div className="relative dropdown-container">
+                  <button
+                    onClick={() => toggleDropdown('solicitudes')}
+                    className="flex items-center hover:text-gray-500"
+                  >
+                    Solicitudes <FiChevronDown className="ml-1" />
+                  </button>
+                  {activeDropdown === 'solicitudes' && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
+                      <Link href="/admin/budget-requests" className="block px-4 py-2 hover:bg-gray-100">Solicitudes de Presupuesto</Link>
+                      <Link href="/admin/budget-requests/new" className="block px-4 py-2 hover:bg-gray-100">Nueva Solicitud</Link>
                     </div>
                   )}
                 </div>
@@ -256,7 +273,7 @@ export default function Header() {
                 </div>
                 <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
                   <span className="text-blue-600 font-medium text-sm">
-                    {userInfo.email.charAt(0).toUpperCase()}
+                    {userInfo?.email?.charAt(0).toUpperCase() || '?'}
                   </span>
                 </div>
               </div>
@@ -286,7 +303,7 @@ export default function Header() {
               <div className="flex items-center space-x-3">
                 <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                   <span className="text-blue-600 font-medium">
-                    {userInfo.email.charAt(0).toUpperCase()}
+                    {userInfo?.email?.charAt(0).toUpperCase() || '?'}
                   </span>
                 </div>
                 <div className="flex flex-col">
@@ -322,6 +339,7 @@ export default function Header() {
               <Link href="/supplier/dashboard" className="block px-6 py-2 hover:bg-gray-100">Dashboard</Link>
               <Link href="/supplier/profile" className="block px-6 py-2 hover:bg-gray-100">Mi Perfil</Link>
               <Link href="/supplier/budgets" className="block px-6 py-2 hover:bg-gray-100">Presupuestos</Link>
+              <Link href="/supplier/budget-requests" className="block px-6 py-2 hover:bg-gray-100">Solicitudes de Presupuesto</Link>
               <Link href="/supplier/invoices" className="block px-6 py-2 hover:bg-gray-100">Facturas</Link>
             </>
           )}
@@ -340,6 +358,10 @@ export default function Header() {
               <Link href="/supplier/admin-register" className="block px-6 py-2 hover:bg-gray-100">Registrar Proveedor</Link>
               <Link href="/supplier/budgets" className="block px-6 py-2 hover:bg-gray-100">Presupuestos</Link>
               <Link href="/supplier/invoices" className="block px-6 py-2 hover:bg-gray-100">Facturas</Link>
+
+              <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Solicitudes</div>
+              <Link href="/admin/budget-requests" className="block px-6 py-2 hover:bg-gray-100">Solicitudes de Presupuesto</Link>
+              <Link href="/admin/budget-requests/new" className="block px-6 py-2 hover:bg-gray-100">Nueva Solicitud</Link>
 
               <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Recibos y Pagos</div>
               <Link href="/receipt/management" className="block px-6 py-2 hover:bg-gray-100 text-green-600">Gestión de Recibos</Link>

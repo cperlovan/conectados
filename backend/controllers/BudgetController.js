@@ -3,6 +3,7 @@ const EconomicActivity = require('../models/EconomicActivity');
 const User = require('../models/User');
 const Supplier = require('../models/Supplier');
 const Condominium = require('../models/Condominium');
+const BudgetRequest = require('../models/BudgetRequest');
 
 const budgetController = {
   // Crear un nuevo presupuesto
@@ -181,7 +182,7 @@ const budgetController = {
             include: [
               {
                 model: User,
-                attributes: ['id', 'name', 'email']
+                attributes: ['id', 'name', 'email', 'lastname']
               }
             ]
           },
@@ -318,73 +319,23 @@ const budgetController = {
   getBudgetsBySupplier: async (req, res) => {
     try {
       const { supplierId } = req.params;
-      const userId = req.user.id;
       const userRole = req.user.role;
       const userSupplierId = req.user.supplierId;
 
-      // Validar que el supplierId sea un número válido
-      if (!supplierId || isNaN(supplierId)) {
-        return res.status(400).json({ 
-          message: 'ID de proveedor inválido',
-          supplierId 
-        });
-      }
-
-      // Verificar si el proveedor existe
-      const supplier = await Supplier.findByPk(supplierId, {
-        include: [
-          {
-            model: User,
-            attributes: ['id', 'role', 'email']
-          },
-          {
-            model: EconomicActivity,
-            as: 'EconomicActivities'
-          }
-        ]
-      });
-
-      if (!supplier) {
-        return res.status(404).json({ 
-          message: 'Proveedor no encontrado',
-          supplierId 
-        });
-      }
-
       // Verificar permisos
-      const isAdmin = ['admin', 'superadmin'].includes(userRole);
-      const isOwnSupplier = userSupplierId === parseInt(supplierId);
-      const isSameCondominium = supplier.condominiumId === req.user.condominiumId;
+      if (userRole === 'proveedor' || userRole === 'supplier') {
+        if (!userSupplierId) {
+          return res.status(403).json({ message: 'No se pudo verificar los permisos del proveedor' });
+        }
 
-      // Si es admin del mismo condominio, permitir acceso
-      if (isAdmin && isSameCondominium) {
-        // Acceso permitido
-      }
-      // Si es el proveedor propietario, permitir acceso
-      else if (isOwnSupplier) {
-        // Acceso permitido
-      }
-      // En cualquier otro caso, denegar acceso
-      else {
-        return res.status(403).json({ 
-          message: 'No tiene permisos para acceder a este proveedor',
-          debug: {
-            isAdmin,
-            isSameCondominium,
-            isOwnSupplier
-          }
-        });
+        if (supplierId != userSupplierId) {
+          return res.status(403).json({ message: 'No tienes permiso para ver estos presupuestos' });
+        }
       }
 
       const budgets = await Budget.findAll({
-        where: { supplierId: supplier.id },
+        where: { supplierId },
         include: [
-          {
-            model: EconomicActivity,
-            as: 'economicActivities',
-            through: { attributes: [] },
-            attributes: ['id', 'name', 'description']
-          },
           {
             model: Supplier,
             as: 'supplier',
@@ -392,14 +343,19 @@ const budgetController = {
             include: [
               {
                 model: User,
-                attributes: ['id', 'name', 'email']
+                attributes: ['id', 'name', 'email', 'lastname']
               }
             ]
+          },
+          {
+            model: EconomicActivity,
+            as: 'economicActivities',
+            through: { attributes: [] }
           }
         ],
         order: [['createdAt', 'DESC']]
       });
-      
+
       // Calcular estadísticas
       const stats = {
         total: budgets.length,
@@ -415,7 +371,7 @@ const budgetController = {
     } catch (error) {
       console.error('Error al obtener presupuestos del proveedor:', error);
       res.status(500).json({ 
-        message: 'Error al obtener presupuestos del proveedor',
+        message: 'Error al obtener los presupuestos del proveedor', 
         error: error.message 
       });
     }

@@ -16,14 +16,17 @@ export interface Budget {
     type: string
     userId: number
     condominiumId: number
+    contactInfo?: {
+      movil?: string
+      phone?: string
+      address?: string
+      companyName?: string
+    }
     User?: {
       id: number
       name: string
+      lastname?: string
       email: string
-      ContactInfo?: {
-        name: string
-        lastname: string
-      }
     }
   }
   budgetSupplier?: {
@@ -36,11 +39,8 @@ export interface Budget {
     User?: {
       id: number
       name: string
+      lastname?: string
       email: string
-      ContactInfo?: {
-        name: string
-        lastname: string
-      }
     }
   }
   budgetEconomicActivities?: Array<{

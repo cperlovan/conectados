@@ -8,6 +8,7 @@ const authenticateToken = require('./middleware/authMiddleware');
 const validateCondominiumId = require('./middleware/validateCondominiumId');
 const superAdminRoutes = require('./routes/superAdminRoutes');
 const budgetRoutes = require('./routes/budget');
+const budgetRequestRoutes = require('./routes/budgetRequest');
 
 // Inicializar Express
 const app = express();
@@ -65,7 +66,8 @@ const Budget = require('./models/Budget');
 const EconomicActivity = require('./models/EconomicActivity');
 
 // Importar relaciones
-require('./relations');
+require('./relations'); // Descomentamos esta línea para usar relations.js
+// require('./models/associations'); // Comentamos esta línea para evitar conflictos
 
 // Importar rutas
 const authRoutes = require('./routes/auth');
@@ -103,6 +105,7 @@ app.use('/api/expenses', authenticateToken, expenseRoutes);
 app.use('/api/budgets', budgetRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/owners', ownerRoutes);
+app.use('/api/budget-requests', budgetRequestRoutes);
 
 // Rutas
 app.use('/api/superadmin', superAdminRoutes);

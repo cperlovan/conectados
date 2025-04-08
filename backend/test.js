@@ -5,7 +5,6 @@ const User = require('./models/User');
 const Supplier = require('./models/Supplier');
 const Budget = require('./models/Budget');
 const EconomicActivity = require('./models/EconomicActivity');
-const ContactInfo = require('./models/ContactInfo');
 
 // Importar relaciones
 require('./relations');

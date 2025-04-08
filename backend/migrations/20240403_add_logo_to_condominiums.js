@@ -3,10 +3,14 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    await queryInterface.addColumn('Condominiums', 'logo', {
-      type: Sequelize.STRING,
-      allowNull: true
-    });
+    // Check if the column already exists
+    const tableInfo = await queryInterface.describeTable('Condominiums');
+    if (!tableInfo.logo) {
+      await queryInterface.addColumn('Condominiums', 'logo', {
+        type: Sequelize.STRING,
+        allowNull: true
+      });
+    }
   },
 
   async down (queryInterface, Sequelize) {

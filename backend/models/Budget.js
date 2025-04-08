@@ -43,6 +43,14 @@ const Budget = sequelize.define('Budget', {
       model: 'Condominiums',
       key: 'id'
     }
+  },
+  budgetRequestId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'BudgetRequests',
+      key: 'id'
+    }
   }
 });
 

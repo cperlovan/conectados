@@ -267,7 +267,10 @@ const completeProfile = async (req, res) => {
       userId: user.id,
       name: `${contactInfo.name} ${contactInfo.lastname}`, // Concatenar name y lastname
       type,
-      contactInfo,
+      contactInfo: {
+        ...contactInfo,
+        email: user.email
+      },
       condominiumId: user.condominiumId, // Obtener condominio del usuario autenticado
     });
 
