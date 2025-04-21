@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { Payment, PaymentStatus, PaymentUpdateResponse } from '../types/payment'
+import { Receipt } from '../types/receipt' // Asumiendo que Receipt está en este path
 
 // URL base para las peticiones API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3040/api'
@@ -84,7 +85,7 @@ export async function updatePaymentStatus(paymentId: number, newStatus: PaymentS
       
       // Calcular montos pendientes y créditos
       const totalPaid = updatedPayment.amount
-      const expectedAmount = receipt.amount
+      // const expectedAmount = receipt.amount // Variable no utilizada
       const currentPendingAmount = receipt.pending_amount || receipt.amount
       
       // Si es el primer pago, usar el monto total del recibo
@@ -225,8 +226,8 @@ export async function getUserPaymentsServer(userId: number) {
     
     // Luego obtenemos los pagos para cada recibo
     const paymentsPromises = receipts
-      .filter((receipt: any) => receipt.id)
-      .map((receipt: any) => {
+      .filter((receipt: Receipt) => receipt.id) // Usar tipo Receipt
+      .map((receipt: Receipt) => { // Usar tipo Receipt
         const paymentsUrl = `${API_BASE_URL}/payments/receipt/${receipt.id}?_nocache=${timestamp}`
         return fetch(paymentsUrl, {
           headers: {
@@ -250,12 +251,12 @@ export async function getUserPaymentsServer(userId: number) {
     const paymentsArrays = await Promise.all(paymentsPromises)
     
     // Aplanamos y procesamos los pagos
-    const allPayments = paymentsArrays.flat().map((payment: any) => {
+    const allPayments = paymentsArrays.flat().map((payment: Payment | null) => { // Usar tipo Payment o null
       if (!payment) return null
       
       // Añadir información del recibo si no está presente
       if (!payment.receipt) {
-        const receipt = receipts.find((r: any) => r.id === payment.receiptId)
+        const receipt = receipts.find((r: Receipt) => r.id === payment.receiptId) // Usar tipo Receipt
         if (receipt) {
           payment.receipt = receipt
         }
