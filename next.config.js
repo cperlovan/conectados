@@ -11,7 +11,9 @@ const nextConfig = {
           },
           {
             key: 'Access-Control-Allow-Origin',
-            value: 'http://localhost:3040'
+            value: process.env.NODE_ENV === 'production' 
+              ? process.env.NEXT_PUBLIC_APP_URL 
+              : 'http://localhost:3040'
           },
           {
             key: 'Access-Control-Allow-Methods',
