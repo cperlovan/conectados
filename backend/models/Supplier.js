@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
+const SupplierCondominiums = require("./SupplierCondominiums");
 
 const Supplier = sequelize.define("Supplier", {
   userId: {
@@ -32,14 +33,6 @@ const Supplier = sequelize.define("Supplier", {
   },
 });
 
-// Tabla intermedia para la relación many-to-many entre Supplier y Condominium
-const SupplierCondominium = sequelize.define("SupplierCondominium", {
-  status: {
-    type: DataTypes.ENUM("active", "inactive"),
-    defaultValue: "active",
-  },
-});
-
 // Tabla intermedia para la relación muchos a muchos entre Supplier y EconomicActivity
 const SupplierEconomicActivity = sequelize.define('SupplierEconomicActivity', {
   status: {
@@ -48,4 +41,8 @@ const SupplierEconomicActivity = sequelize.define('SupplierEconomicActivity', {
   },
 });
 
-module.exports = Supplier;
+module.exports = {
+  Supplier,
+  SupplierCondominiums,
+  SupplierEconomicActivity
+};

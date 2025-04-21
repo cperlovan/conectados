@@ -29,6 +29,7 @@ interface User {
   id: number;
   name: string;
   email: string;
+  lastname?: string;
   ContactInfo?: ContactInfo;
 }
 
@@ -37,6 +38,22 @@ interface Supplier {
   name: string;
   type: string;
   User?: User;
+  contactInfo?: {
+    name?: string;
+    lastname?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    companyName?: string;
+  };
+  contact?: {
+    name: string;
+    lastname: string;
+    phone: string;
+    email: string;
+    address: string;
+    companyName: string;
+  };
   status: "active" | "inactive";
   economicActivities: Array<{
     id: number;
@@ -105,17 +122,15 @@ export default function SupplierPage() {
         id: supplier.id,
         name: supplier.name,
         type: supplier.type,
-        User: {
-          id: supplier.User?.id || 0,
-          name: supplier.User?.name || "",
-          email: supplier.User?.email || "",
-          ContactInfo: {
-            name: supplier.User?.ContactInfo?.name || "",
-            lastname: supplier.User?.ContactInfo?.lastname || "",
-            phone: supplier.User?.ContactInfo?.phone || "",
-            email: supplier.User?.ContactInfo?.email || "",
-            address: supplier.User?.ContactInfo?.address || ""
-          }
+        User: supplier.User || {},
+        contactInfo: supplier.contactInfo || {},
+        contact: supplier.contact || {
+          name: '',
+          lastname: '',
+          email: '',
+          phone: '',
+          address: '',
+          companyName: ''
         },
         status: supplier.status || "active",
         economicActivities: supplier.economicActivities || []
@@ -226,16 +241,16 @@ export default function SupplierPage() {
           bValue = b.type;
           break;
         case 'contact':
-          aValue = `${a.User?.ContactInfo?.name || ''} ${a.User?.ContactInfo?.lastname || ''}`;
-          bValue = `${b.User?.ContactInfo?.name || ''} ${b.User?.ContactInfo?.lastname || ''}`;
+          aValue = `${a.contact?.name || ''} ${a.contact?.lastname || ''}`;
+          bValue = `${b.contact?.name || ''} ${b.contact?.lastname || ''}`;
           break;
         case 'phone':
-          aValue = a.User?.ContactInfo?.phone || '';
-          bValue = b.User?.ContactInfo?.phone || '';
+          aValue = a.contact?.phone || a.contactInfo?.phone || '';
+          bValue = b.contact?.phone || b.contactInfo?.phone || '';
           break;
         case 'email':
-          aValue = a.User?.ContactInfo?.email || '';
-          bValue = b.User?.ContactInfo?.email || '';
+          aValue = a.contact?.email || a.contactInfo?.email || a.User?.email || '';
+          bValue = b.contact?.email || b.contactInfo?.email || b.User?.email || '';
           break;
         case 'status':
           aValue = a.status;
@@ -266,10 +281,10 @@ export default function SupplierPage() {
     return (
       supplier.name.toLowerCase().includes(searchTermLower) ||
       supplier.type.toLowerCase().includes(searchTermLower) ||
-      (supplier.User?.ContactInfo?.name?.toLowerCase() || '').includes(searchTermLower) ||
-      (supplier.User?.ContactInfo?.lastname?.toLowerCase() || '').includes(searchTermLower) ||
-      (supplier.User?.ContactInfo?.email?.toLowerCase() || '').includes(searchTermLower) ||
-      (supplier.User?.ContactInfo?.phone?.toLowerCase() || '').includes(searchTermLower) ||
+      (supplier.contact?.name?.toLowerCase() || '').includes(searchTermLower) ||
+      (supplier.contact?.lastname?.toLowerCase() || '').includes(searchTermLower) ||
+      (supplier.contact?.email?.toLowerCase() || '').includes(searchTermLower) ||
+      (supplier.contact?.phone?.toLowerCase() || '').includes(searchTermLower) ||
       supplier.economicActivities.some(activity => 
         activity.name.toLowerCase().includes(searchTermLower)
       )
@@ -312,18 +327,18 @@ export default function SupplierPage() {
                 </div>
                 <div className="flex items-center">
                   <span className="font-medium">Contacto:</span>
-                  <span className="ml-2">{supplier.User?.ContactInfo?.name} {supplier.User?.ContactInfo?.lastname}</span>
+                  <span className="ml-2">{supplier.contact?.name || supplier.User?.name || ''} {supplier.contact?.lastname || supplier.User?.lastname || ''}</span>
                 </div>
               </div>
 
               <div className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg mb-3">
                 <div className="flex items-center mb-2">
                   <span className="font-medium">Email:</span>
-                  <span className="ml-2">{supplier.User?.ContactInfo?.email}</span>
+                  <span className="ml-2">{supplier.contact?.email || supplier.contactInfo?.email || supplier.User?.email || 'No disponible'}</span>
                 </div>
                 <div className="flex items-center">
                   <span className="font-medium">Teléfono:</span>
-                  <span className="ml-2">{supplier.User?.ContactInfo?.phone}</span>
+                  <span className="ml-2">{supplier.contact?.phone || supplier.contactInfo?.phone || 'No disponible'}</span>
                 </div>
               </div>
 
@@ -527,21 +542,21 @@ export default function SupplierPage() {
                       {columns.find(col => col.id === 'contact')?.visible && (
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">
-                            {supplier.User?.ContactInfo?.name} {supplier.User?.ContactInfo?.lastname}
+                            {supplier.contact?.name || supplier.User?.name || ''} {supplier.contact?.lastname || supplier.User?.lastname || ''}
                           </div>
                         </td>
                       )}
                       {columns.find(col => col.id === 'phone')?.visible && (
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">
-                            {supplier.User?.ContactInfo?.phone}
+                            {supplier.contact?.phone || supplier.contactInfo?.phone || ''}
                           </div>
                         </td>
                       )}
                       {columns.find(col => col.id === 'email')?.visible && (
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-500">
-                            {supplier.User?.ContactInfo?.email}
+                            {supplier.contact?.email || supplier.contactInfo?.email || supplier.User?.email || ''}
                           </div>
                         </td>
                       )}

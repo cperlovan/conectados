@@ -2,7 +2,7 @@
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const User = require('../models/User');
-const Supplier = require('../models/Supplier');
+const { Supplier } = require('../models/Supplier');
 
 const publicRoutes = [
   { path: "/api/auth/login", method: "POST" },

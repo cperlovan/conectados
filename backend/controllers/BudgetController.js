@@ -1,7 +1,7 @@
 const Budget = require('../models/Budget');
 const EconomicActivity = require('../models/EconomicActivity');
 const User = require('../models/User');
-const Supplier = require('../models/Supplier');
+const { Supplier } = require('../models/Supplier');
 const Condominium = require('../models/Condominium');
 const BudgetRequest = require('../models/BudgetRequest');
 

@@ -43,6 +43,8 @@ export default function NewInvoice() {
     budgetId: "",
     number: "",
     amount: "",
+    description: "",
+    dueDate: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,16 @@ export default function NewInvoice() {
           }
         );
 
+        // Agregar logging para depuración
+        console.log('Respuesta al obtener presupuestos:', {
+          status: budgetsResponse.status,
+          statusText: budgetsResponse.statusText,
+          ok: budgetsResponse.ok
+        });
+        
         if (!budgetsResponse.ok) {
+          const errorData = await budgetsResponse.json().catch(e => ({}));
+          console.error('Error detallado de presupuestos:', errorData);
           throw new Error("Error al cargar presupuestos");
         }
         
@@ -178,7 +189,10 @@ export default function NewInvoice() {
           budgetId: Number(formData.budgetId),
           number: formData.number,
           amount: Number(formData.amount),
-          supplierId: Number(supplierData.id)
+          supplierId: Number(supplierData.id),
+          description: formData.description,
+          dueDate: formData.dueDate,
+          condominiumId: supplierData.condominiumId
         }),
       });
 
@@ -294,6 +308,36 @@ export default function NewInvoice() {
                 required
                 min="0"
                 step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Descripción
+              </label>
+              <input
+                type="text"
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha de Vencimiento
+              </label>
+              <input
+                type="date"
+                id="dueDate"
+                name="dueDate"
+                value={formData.dueDate}
+                onChange={handleChange}
+                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>

@@ -141,6 +141,7 @@ export const config = {
     "/owner/:path*",
     "/api/suppliers/:path*",
     "/api/economic-activities",
-    "/api/owners/:path*"
+    "/api/owners/:path*",
+    "/api/supplier-payments/:path*"
   ]
 };

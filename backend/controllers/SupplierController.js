@@ -1,7 +1,8 @@
-const Supplier = require("../models/Supplier");
+const { Supplier, SupplierCondominiums, SupplierEconomicActivity } = require("../models/Supplier");
 const EconomicActivity = require("../models/EconomicActivity");
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
+const Condominium = require("../models/Condominium");
 
 // Crear un nuevo proveedor
 const createSupplier = async (req, res) => {
@@ -68,12 +69,15 @@ const createSupplier = async (req, res) => {
       name: supplierName, // Nombre de la empresa o nombre del usuario
       type,
       contactInfo,
-      condominiumId // Asignar el mismo condominiumId al proveedor
+      condominiumId // Mantener el condominiumId para compatibilidad con código existente
     });
 
-    // Asociar con condominios
+    // Asociar con condominios a través de la relación many-to-many
     if (condominiums && condominiums.length > 0) {
       await supplier.addCondominiums(condominiums);
+    } else {
+      // Si no se proporcionan condominios, asociar con el condominio del usuario
+      await supplier.addCondominiums([condominiumId]);
     }
 
     // Asociar actividades económicas
@@ -92,6 +96,10 @@ const createSupplier = async (req, res) => {
           model: EconomicActivity,
           attributes: ["id", "name", "description"],
         },
+        {
+          model: Condominium,
+          through: { attributes: [] }
+        }
       ],
     });
 
@@ -115,15 +123,47 @@ const createSupplier = async (req, res) => {
 // Obtener todos los proveedores
 const getAllSuppliers = async (req, res) => {
   try {
-    const suppliers = await Supplier.findAll({
+    const { role, condominiumId } = req.user;
+    
+    // Configurar las opciones de la consulta
+    const queryOptions = {
       include: [
         {
           model: User,
           attributes: ["id", "name", "lastname", "email", "status"],
         },
-      ],
-    });
-    res.json(suppliers);
+        {
+          model: EconomicActivity,
+          through: { attributes: [] }
+        },
+        {
+          model: Condominium,
+          through: { attributes: [] }
+        }
+      ]
+    };
+    
+    // Si no es superadmin, filtrar por condominio
+    if (role !== 'superadmin') {
+      queryOptions.include[2].where = { id: condominiumId };
+      queryOptions.include[2].required = true;
+    }
+    
+    const suppliers = await Supplier.findAll(queryOptions);
+    
+    // Formatear la respuesta para consistencia
+    const formattedSuppliers = suppliers.map(supplier => ({
+      id: supplier.id,
+      name: supplier.name,
+      type: supplier.type,
+      contactInfo: supplier.contactInfo || {},
+      status: supplier.status || 'active',
+      User: supplier.User,
+      economicActivities: supplier.EconomicActivities || [],
+      condominiums: supplier.Condominiums || []
+    }));
+    
+    res.json(formattedSuppliers);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener proveedores",
@@ -136,32 +176,80 @@ const getAllSuppliers = async (req, res) => {
 const getSuppliersByCondominium = async (req, res) => {
   try {
     const { condominiumId } = req.params;
+    const { role } = req.user;
 
-    // Consulta principal
+    // Verificar si el usuario tiene acceso al condominio
+    if (role !== 'admin' && role !== 'superadmin') {
+      return res.status(403).json({
+        message: 'No tiene permisos para acceder a esta información'
+      });
+    }
+
+    console.log(`Buscando proveedores para el condominio: ${condominiumId}`);
+
+    // Obtener el condominio
+    const condominium = await Condominium.findByPk(condominiumId);
+    if (!condominium) {
+      return res.status(404).json({
+        message: 'Condominio no encontrado'
+      });
+    }
+
+    // Usar la relación many-to-many para obtener proveedores asociados al condominio
     const suppliers = await Supplier.findAll({
-      where: { condominiumId },
-      attributes: ['id', 'name', 'contactInfo'], // Ajusta según tus campos
       include: [
         {
           model: User,
-          attributes: ['id', 'name', 'lastname', 'email', 'status'],
+          attributes: ['id', 'name', 'lastname', 'email', 'status']
         },
         {
-          model: EconomicActivity, // Incluye las actividades económicas
-          through: { attributes: [] }, // Excluye los campos de la tabla intermedia
-          attributes: ['id', 'name', 'description'], // Solo incluye los campos relevantes
+          model: EconomicActivity,
+          through: { attributes: [] }
         },
-      ],
+        {
+          model: Condominium,
+          through: { attributes: [] },
+          where: { id: condominiumId },
+          required: true // Asegura que solo devuelva proveedores asociados a este condominio
+        }
+      ]
     });
 
-    // Agregar logs para depuración
-    console.log("Proveedores encontrados:", JSON.stringify(suppliers, null, 2));
+    console.log(`Proveedores encontrados: ${suppliers.length}`);
 
-    res.json(suppliers);
+    // Formatear la respuesta con información completa
+    const formattedSuppliers = suppliers.map(supplier => {
+      // Extraer contactInfo del proveedor
+      const contactInfo = supplier.contactInfo || {};
+      
+      return {
+        id: supplier.id,
+        name: supplier.name,
+        type: supplier.type,
+        contactInfo: contactInfo,
+        status: supplier.status || 'active',
+        User: supplier.User,
+        economicActivities: supplier.EconomicActivities || [],
+        // Incluir la información más relevante para la vista de listado
+        contact: {
+          name: contactInfo.name || supplier.User?.name || '',
+          lastname: contactInfo.lastname || supplier.User?.lastname || '',
+          email: contactInfo.email || supplier.User?.email || '',
+          phone: contactInfo.phone || '',
+          address: contactInfo.address || '',
+          companyName: contactInfo.companyName || ''
+        }
+      };
+    });
+
+    console.log('Proveedores formateados:', JSON.stringify(formattedSuppliers, null, 2));
+
+    res.json(formattedSuppliers);
   } catch (error) {
+    console.error('Error al obtener proveedores por condominio:', error);
     res.status(500).json({
-      message: 'Error al obtener proveedores',
-      error: error.message,
+      message: 'Error al obtener proveedores por condominio',
+      error: error.message
     });
   }
 };
@@ -169,18 +257,34 @@ const getSuppliersByCondominium = async (req, res) => {
 // Obtener actividades de un proveedor
 const getActivitiesBySupplier = async (req, res) => {
   try {
-    const { supplierId } = req.params;
-    const supplier = await Supplier.findByPk(supplierId, {
-      include: ["EconomicActivities"],
+    const { id } = req.params;
+
+    const supplier = await Supplier.findByPk(id, {
+      include: [{
+        model: EconomicActivity,
+        attributes: ['id', 'name', 'description', 'status'],
+        through: {
+          attributes: ['status'], // Incluye el estado de la relación
+        }
+      }]
     });
+
     if (!supplier) {
-      return res.status(404).json({ message: "Proveedor no encontrado" });
+      return res.status(404).json({
+        message: 'Proveedor no encontrado'
+      });
     }
-    res.json(supplier.EconomicActivities);
+
+    res.status(200).json({
+      message: 'Actividades económicas obtenidas exitosamente',
+      activities: supplier.EconomicActivities
+    });
+
   } catch (error) {
+    console.error('Error al obtener las actividades económicas:', error);
     res.status(500).json({
-      message: "Error al obtener actividades",
-      error: error.message,
+      message: 'Error al obtener las actividades económicas',
+      error: error.message
     });
   }
 };
@@ -203,6 +307,10 @@ const getSupplierByUserId = async (req, res) => {
           through: { attributes: [] },
           attributes: ['id', 'name', 'description'],
         },
+        {
+          model: Condominium,
+          through: { attributes: [] }
+        }
       ],
     });
 
@@ -279,22 +387,65 @@ const completeProfile = async (req, res) => {
       await supplier.addEconomicActivities(economicActivities);
     }
 
-    // Actualizar datos en la tabla Users
-    await User.update(
-      {
+    // Crear la relación en la tabla SupplierCondominiums directamente
+    await SupplierCondominiums.create({
+      supplierId: supplier.id,
+      condominiumId: user.condominiumId,
+      status: 'active'
+    });
+
+    try {
+      // Actualizar datos en la tabla Users con mejor manejo de errores
+      console.log('Intentando actualizar usuario con ID:', user.id);
+      console.log('Datos para actualizar:', {
         name: contactInfo.name || user.name,
         lastname: contactInfo.lastname || user.lastname,
-        telephone: contactInfo.phone || user.telephone,
+        telephone: contactInfo.phone || user.telephone, // Nota: el campo en contactInfo es 'phone', en User es 'telephone'
         movil: contactInfo.movil || user.movil,
         address: contactInfo.address || user.address,
-        status: "active", // Cambiar el estado a 'active'
-      },
-      { where: { id: user.id } }
-    );
+        status: "active"
+      });
+      
+      const [updatedRows] = await User.update(
+        {
+          name: contactInfo.name || user.name,
+          lastname: contactInfo.lastname || user.lastname,
+          telephone: contactInfo.phone || user.telephone,
+          movil: contactInfo.movil || user.movil,
+          address: contactInfo.address || user.address,
+          status: "active", // Cambiar el estado a 'active'
+        },
+        { 
+          where: { id: user.id },
+          returning: true
+        }
+      );
+      
+      console.log('Filas actualizadas en Users:', updatedRows);
+      
+      if (updatedRows === 0) {
+        console.warn('No se actualizó ningún usuario. Posible problema con la cláusula WHERE o con la integridad de los datos.');
+      }
+    } catch (userUpdateError) {
+      // Solo registrar el error pero continuar con la respuesta
+      console.error('Error al actualizar datos de usuario:', userUpdateError);
+    }
+
+    // Obtener el usuario actualizado para la respuesta
+    const updatedUser = await User.findByPk(user.id);
 
     res.status(201).json({
       message: "Perfil de proveedor completado exitosamente.",
       supplier,
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        lastname: updatedUser.lastname,
+        email: updatedUser.email,
+        telephone: updatedUser.telephone,
+        address: updatedUser.address,
+        status: updatedUser.status
+      }
     });
   } catch (error) {
     console.error("Error al completar perfil de proveedor:", error);
@@ -309,17 +460,32 @@ const completeProfile = async (req, res) => {
 const updateSupplier = async (req, res) => {
   try {
     const { supplierId } = req.params;
-    const { name, type, status, contactInfo, economicActivities } = req.body;
+    const { 
+      name, 
+      type, 
+      status, 
+      contactInfo, 
+      economicActivities,
+      userData // Nuevo campo para los datos del usuario
+    } = req.body;
     const { condominiumId } = req.user;
 
-    console.log('Datos recibidos:', { supplierId, name, type, status, contactInfo, economicActivities });
+    console.log('Datos recibidos:', { 
+      supplierId, 
+      name, 
+      type, 
+      status, 
+      contactInfo, 
+      economicActivities,
+      userData
+    });
 
     // Verificar si el proveedor existe
     const supplier = await Supplier.findByPk(supplierId, {
       include: [
         {
           model: User,
-          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status']
+          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status', 'nic']
         },
         {
           model: EconomicActivity,
@@ -344,24 +510,29 @@ const updateSupplier = async (req, res) => {
       });
     }
 
-    // Actualizar datos del proveedor
+    // Actualizar datos del proveedor (empresa/emprendimiento)
     await supplier.update({
       name,
       type,
-      status: status || 'active'
+      status: status || 'active',
+      contactInfo // Actualiza el objeto JSON completo
     });
 
-    // Actualizar datos del usuario asociado
-    await User.update(
-      {
-        name: contactInfo.name,
-        lastname: contactInfo.lastname,
-        telephone: contactInfo.phone,
-        email: contactInfo.email,
-        address: contactInfo.address
-      },
-      { where: { id: supplier.userId } }
-    );
+    // Actualizar datos del usuario (persona) si se proporcionaron
+    if (userData) {
+      await User.update(
+        {
+          name: userData.name,
+          lastname: userData.lastname,
+          telephone: userData.telephone,
+          movil: userData.movil,
+          address: userData.address,
+          nic: userData.nic
+          // No actualizamos el email porque es el identificador del usuario
+        },
+        { where: { id: supplier.userId } }
+      );
+    }
 
     // Actualizar actividades económicas si se proporcionaron
     if (economicActivities && Array.isArray(economicActivities)) {
@@ -376,7 +547,7 @@ const updateSupplier = async (req, res) => {
       include: [
         {
           model: User,
-          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status']
+          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status', 'nic']
         },
         {
           model: EconomicActivity,
@@ -391,14 +562,9 @@ const updateSupplier = async (req, res) => {
       name: updatedSupplier.name,
       type: updatedSupplier.type,
       status: updatedSupplier.status,
-      contactInfo: {
-        name: updatedSupplier.User.name,
-        lastname: updatedSupplier.User.lastname,
-        phone: updatedSupplier.User.telephone,
-        email: updatedSupplier.User.email,
-        address: updatedSupplier.User.address
-      },
-      economicActivities: updatedSupplier.EconomicActivities
+      contactInfo: updatedSupplier.contactInfo || {},
+      User: updatedSupplier.User,
+      economicActivities: updatedSupplier.EconomicActivities || []
     };
 
     res.json({
@@ -454,6 +620,7 @@ const adminRegister = async (req, res) => {
       name,
       type,
       contactInfo,
+      userData, // Datos del usuario (persona)
       economicActivities
     } = req.body;
 
@@ -465,7 +632,7 @@ const adminRegister = async (req, res) => {
       });
     }
 
-    console.log("Datos recibidos:", { userId, name, type, contactInfo, economicActivities, condominiumId });
+    console.log("Datos recibidos:", { userId, name, type, contactInfo, userData, economicActivities, condominiumId });
 
     // Buscar el usuario existente por ID
     const existingUser = await User.findByPk(userId);
@@ -484,20 +651,23 @@ const adminRegister = async (req, res) => {
 
     console.log("Usuario encontrado:", existingUser.toJSON());
 
-    // Actualizar los datos del usuario
-    const userUpdateData = {
-      name: contactInfo.name,
-      lastname: contactInfo.lastname,
-      telephone: contactInfo.phone,
-      movil: contactInfo.phone,
-      address: contactInfo.address,
-      status: "active",
-      authorized: true,
-      condominiumId // Asignar el mismo condominiumId al usuario
-    };
+    // Actualizar los datos del usuario (persona)
+    if (userData) {
+      const userUpdateData = {
+        name: userData.name,
+        lastname: userData.lastname,
+        telephone: userData.telephone,
+        movil: userData.movil,
+        address: userData.address,
+        nic: userData.nic,
+        status: "active",
+        authorized: true,
+        condominiumId // Asignar el mismo condominiumId al usuario
+      };
 
-    console.log("Datos a actualizar del usuario:", userUpdateData);
-    await existingUser.update(userUpdateData);
+      console.log("Datos a actualizar del usuario:", userUpdateData);
+      await existingUser.update(userUpdateData);
+    }
 
     // Verificar si ya existe un proveedor para este usuario
     const existingSupplier = await Supplier.findOne({ where: { userId } });
@@ -507,28 +677,20 @@ const adminRegister = async (req, res) => {
       });
     }
 
-    // Determinar el nombre del proveedor
-    let supplierName;
-    if (type === "company" && contactInfo.companyName) {
-      supplierName = contactInfo.companyName;
-    } else {
-      supplierName = `${contactInfo.name} ${contactInfo.lastname}`;
-    }
-
-    // Crear el proveedor
+    // Crear el proveedor (empresa/emprendimiento)
     const supplierData = {
       userId,
-      name: supplierName,
+      name, // Ya está formateado correctamente: nombre de empresa o combinación de nombre/apellido
       type,
-      contactInfo: {
-        ...contactInfo,
-        email: existingUser.email
-      },
-      condominiumId // Asignar el mismo condominiumId al proveedor
+      contactInfo, // Datos de contacto de la empresa
+      condominiumId // Mantener el condominiumId para compatibilidad
     };
 
     console.log("Datos a enviar al backend para crear proveedor:", supplierData);
     const supplier = await Supplier.create(supplierData);
+
+    // Asociar con el condominio a través de la relación many-to-many
+    await supplier.addCondominiums([condominiumId]);
 
     // Asociar actividades económicas
     if (economicActivities && economicActivities.length > 0) {
@@ -540,12 +702,16 @@ const adminRegister = async (req, res) => {
       include: [
         {
           model: User,
-          attributes: ["id", "name", "lastname", "email", "status"],
+          attributes: ["id", "name", "lastname", "email", "status", "telephone", "movil", "address", "nic"],
         },
         {
           model: EconomicActivity,
           attributes: ["id", "name", "description"],
         },
+        {
+          model: Condominium,
+          through: { attributes: [] }
+        }
       ],
     });
 
@@ -572,10 +738,14 @@ const getSupplierById = async (req, res) => {
       include: [
         {
           model: User,
-          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status']
+          attributes: ['id', 'name', 'lastname', 'email', 'telephone', 'movil', 'address', 'status', 'nic']
         },
         {
           model: EconomicActivity,
+          through: { attributes: [] }
+        },
+        {
+          model: Condominium,
           through: { attributes: [] }
         }
       ]
@@ -586,24 +756,27 @@ const getSupplierById = async (req, res) => {
     }
 
     // Verificar que el proveedor pertenezca al mismo condominio que el usuario
-    if (supplier.condominiumId !== condominiumId) {
-      return res.status(403).json({ message: 'No tiene permisos para acceder a este proveedor.' });
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+      // Verificar si el proveedor está asociado al condominio del usuario
+      const isAssociatedWithUserCondominium = supplier.Condominiums.some(
+        condominium => condominium.id === condominiumId
+      );
+      
+      if (!isAssociatedWithUserCondominium) {
+        return res.status(403).json({ message: 'No tiene permisos para acceder a este proveedor.' });
+      }
     }
 
-    // Formatear la respuesta
+    // Formatear la respuesta incluyendo todos los datos
     const formattedSupplier = {
       id: supplier.id,
       name: supplier.name,
       type: supplier.type,
       status: supplier.status || 'active',
-      contactInfo: {
-        name: supplier.User.name,
-        lastname: supplier.User.lastname,
-        phone: supplier.User.telephone,
-        email: supplier.User.email,
-        address: supplier.User.address
-      },
-      economicActivities: supplier.EconomicActivities
+      contactInfo: supplier.contactInfo || {},
+      User: supplier.User,
+      economicActivities: supplier.EconomicActivities || [],
+      condominiums: supplier.Condominiums || []
     };
 
     res.json(formattedSupplier);
@@ -628,6 +801,12 @@ const updateSupplierCondominium = async (req, res) => {
       return res.status(404).json({ message: 'Proveedor no encontrado.' });
     }
 
+    // Verificar si el condominio existe
+    const condominium = await Condominium.findByPk(condominiumId);
+    if (!condominium) {
+      return res.status(404).json({ message: 'Condominio no encontrado.' });
+    }
+
     // Actualizar el condominiumId del proveedor
     await supplier.update({ condominiumId });
 
@@ -637,13 +816,33 @@ const updateSupplierCondominium = async (req, res) => {
       { where: { id: supplier.userId } }
     );
 
+    // Actualizar la relación many-to-many
+    // Primero, eliminar todas las relaciones existentes
+    await supplier.setCondominiums([]);
+    // Luego, agregar la nueva relación
+    await supplier.addCondominiums([condominiumId]);
+
+    // Obtener el proveedor actualizado con todas sus relaciones
+    const updatedSupplier = await Supplier.findByPk(supplier.id, {
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'name', 'lastname', 'email', 'status']
+        },
+        {
+          model: EconomicActivity,
+          through: { attributes: [] }
+        },
+        {
+          model: Condominium,
+          through: { attributes: [] }
+        }
+      ]
+    });
+
     res.json({
       message: 'Condominio del proveedor actualizado exitosamente.',
-      supplier: {
-        id: supplier.id,
-        name: supplier.name,
-        condominiumId: supplier.condominiumId
-      }
+      supplier: updatedSupplier
     });
   } catch (error) {
     console.error('Error al actualizar condominio del proveedor:', error);

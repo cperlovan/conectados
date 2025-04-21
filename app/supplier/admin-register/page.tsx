@@ -157,17 +157,27 @@ export default function AdminRegisterSupplier() {
         return;
       }
 
+      // Construir el objeto de datos separando claramente información de usuario y proveedor
       const data = {
         userId: userData.id,
-        name: formData.type === "company" ? formData.contactInfo.companyName : formData.name,
+        // Datos del proveedor (empresa/emprendimiento)
+        name: formData.type === "company" ? formData.contactInfo.companyName : `${formData.name} ${formData.lastname}`,
         type: formData.type,
         contactInfo: {
+          companyName: formData.contactInfo.companyName,
+          email: formData.contactInfo.email || normalizedEmail,
+          phone: formData.contactInfo.telephone || formData.contactInfo.movil,
+          address: formData.contactInfo.address,
+          position: formData.contactInfo.position
+        },
+        // Datos del usuario (persona)
+        userData: {
           name: formData.name,
           lastname: formData.lastname,
-          phone: formData.telephone || formData.movil,
-          email: normalizedEmail,
+          telephone: formData.telephone,
+          movil: formData.movil,
           address: formData.address,
-          position: formData.contactInfo.position
+          nic: formData.nic
         },
         economicActivities: selectedActivities,
         condominiumId: userData.condominiumId

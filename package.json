@@ -16,6 +16,7 @@
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-toast": "^1.2.6",
     "@reduxjs/toolkit": "^2.6.1",
+    "@tanstack/react-query": "^5.72.2",
     "@types/jwt-decode": "^2.2.1",
     "apicache": "^1.6.3",
     "axios": "^1.8.2",

@@ -85,6 +85,7 @@ const reserveFundContributionRoutes = require('./routes/reserveFundContribution'
 const reserveFundWithdrawalRoutes = require('./routes/reserveFundWithdrawal');
 const invoiceRoutes = require('./routes/invoice');
 const ownerRoutes = require('./routes/owner');
+const supplierPaymentsRoutes = require('./routes/supplierPayments');
 
 // Rutas públicas (sin autenticación)
 app.use('/api/auth', authRoutes);
@@ -106,6 +107,7 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/owners', ownerRoutes);
 app.use('/api/budget-requests', budgetRequestRoutes);
+app.use('/api/supplier-payments', supplierPaymentsRoutes);
 
 // Rutas
 app.use('/api/superadmin', superAdminRoutes);

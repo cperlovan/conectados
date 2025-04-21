@@ -46,6 +46,9 @@ export default function BudgetRequestsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [etag, setEtag] = useState<string | null>(null);
 
   useEffect(() => {
     // Esperar a que se complete la carga del token
@@ -66,11 +69,57 @@ export default function BudgetRequestsList() {
     }
 
     fetchBudgetRequests();
+
+    // Usar la API de Visibility para verificar si la página está visible
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    // Función para manejar cambios de visibilidad
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // La página está visible, actualizar los datos
+        console.log("Página visible, actualizando datos...");
+        fetchBudgetRequests(true);
+        
+        // Iniciar el intervalo solo cuando la página está visible
+        if (!intervalId) {
+          intervalId = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+              console.log("Actualización programada cada 5 minutos...");
+              fetchBudgetRequests(true);
+            }
+          }, 300000); // 5 minutos (300,000 ms)
+        }
+      } else {
+        // La página no está visible, detener el intervalo
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+    };
+    
+    // Registrar el evento de cambio de visibilidad
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Manejar el caso inicial
+    handleVisibilityChange();
+    
+    // Limpiar
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, [token, userInfo, router, isLoading]);
 
-  const fetchBudgetRequests = async () => {
+  const fetchBudgetRequests = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
       setError("");
 
       // Verificar si tenemos el supplierId
@@ -99,15 +148,55 @@ export default function BudgetRequestsList() {
         console.log("SupplierId obtenido:", supplierData.id);
       }
 
+      // Configurar los headers para la petición
+      const headers: HeadersInit = {
+        'Authorization': `Bearer ${token}`,
+      };
+      
+      // Añadir headers para caché condicional si ya tenemos datos previos
+      if (lastUpdated) {
+        headers['If-Modified-Since'] = lastUpdated.toUTCString();
+      }
+      
+      if (etag) {
+        headers['If-None-Match'] = etag;
+      }
+
       const response = await fetch("http://localhost:3040/api/budget-requests/supplier", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
+        cache: 'no-store',  // Forzar revalidación
       });
+
+      // Si obtenemos 304 Not Modified, no necesitamos actualizar nada
+      if (response.status === 304) {
+        console.log("Servidor indica que no hay cambios (304 Not Modified)");
+        // Actualizar solo la fecha de verificación, pero no los datos
+        setLastUpdated(new Date());
+        return;
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Error al obtener las solicitudes de presupuesto");
+      }
+
+      // Guardar los headers de caché condicional para futuras peticiones
+      const responseEtag = response.headers.get('ETag');
+      if (responseEtag) {
+        setEtag(responseEtag);
+      }
+      
+      const lastModified = response.headers.get('Last-Modified');
+      if (lastModified) {
+        const lastModifiedDate = new Date(lastModified);
+        // Solo actualizar si es una fecha válida
+        if (!isNaN(lastModifiedDate.getTime())) {
+          setLastUpdated(lastModifiedDate);
+        } else {
+          setLastUpdated(new Date());
+        }
+      } else {
+        setLastUpdated(new Date());
       }
 
       const data = await response.json();
@@ -123,7 +212,21 @@ export default function BudgetRequestsList() {
       setError(err instanceof Error ? err.message : "Error al obtener las solicitudes de presupuesto");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  // Formatear el tiempo de última actualización
+  const formatLastUpdated = () => {
+    if (!lastUpdated) return "";
+    
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastUpdated.getTime()) / 1000); // Diferencia en segundos
+    
+    if (diff < 60) return `hace ${diff} segundos`;
+    if (diff < 3600) return `hace ${Math.floor(diff / 60)} minutos`;
+    if (diff < 86400) return `hace ${Math.floor(diff / 3600)} horas`;
+    return `${lastUpdated.toLocaleDateString()} a las ${lastUpdated.toLocaleTimeString()}`;
   };
 
   const getStatusColor = (status: string) => {
@@ -221,8 +324,32 @@ export default function BudgetRequestsList() {
               <h1 className="text-2xl font-bold mb-2">Solicitudes de Presupuesto</h1>
               <div className="text-gray-500 text-sm">
                 Total: <span className="font-medium">{budgetRequests.length}</span> solicitudes
+                {lastUpdated && (
+                  <span className="ml-3 text-gray-400">
+                    Actualizado {formatLastUpdated()}
+                  </span>
+                )}
               </div>
             </div>
+            <button
+              onClick={() => fetchBudgetRequests()}
+              disabled={loading || refreshing}
+              className="mt-2 md:mt-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-md flex items-center transition-colors"
+            >
+              {refreshing ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-r-transparent rounded-full mr-2"></div>
+                  Actualizando...
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Actualizar
+                </>
+              )}
+            </button>
           </div>
 
           {/* Filtros */}

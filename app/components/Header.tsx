@@ -112,6 +112,7 @@ export default function Header() {
                     <Link href="/supplier/budgets" className="block px-4 py-2 hover:bg-gray-100">Presupuestos</Link>
                     <Link href="/supplier/budget-requests" className="block px-4 py-2 hover:bg-gray-100">Solicitudes de Presupuesto</Link>
                     <Link href="/supplier/invoices" className="block px-4 py-2 hover:bg-gray-100">Facturas</Link>
+                    <Link href="/supplier/payments" className="block px-4 py-2 hover:bg-gray-100 text-green-600">Pagos Recibidos</Link>
                   </div>
                 )}
               </div>
@@ -152,6 +153,7 @@ export default function Header() {
                       <Link href="/supplier/admin-register" className="block px-4 py-2 hover:bg-gray-100">Registrar Proveedor</Link>
                       <Link href="/supplier/budgets" className="block px-4 py-2 hover:bg-gray-100">Presupuestos</Link>
                       <Link href="/supplier/invoices" className="block px-4 py-2 hover:bg-gray-100">Facturas</Link>
+                      <Link href="/admin/supplier-payments" className="block px-4 py-2 hover:bg-gray-100 text-green-600">Pagos a Proveedores</Link>
                     </div>
                   )}
                 </div>
@@ -189,6 +191,7 @@ export default function Header() {
                         <Link href="/payments" className="block px-4 py-2 hover:bg-gray-100">Listar Pagos</Link>
                         <Link href="/payments/validation" className="block px-4 py-2 hover:bg-gray-100">Validación de Pagos</Link>
                         <Link href="/admin/payments" className="block px-4 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
+                        <Link href="/admin/supplier-payments" className="block px-4 py-2 hover:bg-gray-100 text-orange-600">Pagos a Proveedores</Link>
                       </div>
                       <div className="py-1 border-b border-gray-200">
                         <span className="block px-4 py-1 text-sm font-semibold text-gray-500">Contabilidad</span>
@@ -245,6 +248,7 @@ export default function Header() {
                         <Link href="/receipt/management/create" className="block px-4 py-2 hover:bg-gray-100">Generar Recibos</Link>
                         <Link href="/payments/validation" className="block px-4 py-2 hover:bg-gray-100">Validación de Pagos</Link>
                         <Link href="/admin/payments" className="block px-4 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
+                        <Link href="/admin/supplier-payments" className="block px-4 py-2 hover:bg-gray-100 text-orange-600">Pagos a Proveedores</Link>
                       </div>
                       <div className="py-1">
                         <span className="block px-4 py-1 text-sm font-semibold text-gray-500">Gestión de Fondos</span>
@@ -341,6 +345,7 @@ export default function Header() {
               <Link href="/supplier/budgets" className="block px-6 py-2 hover:bg-gray-100">Presupuestos</Link>
               <Link href="/supplier/budget-requests" className="block px-6 py-2 hover:bg-gray-100">Solicitudes de Presupuesto</Link>
               <Link href="/supplier/invoices" className="block px-6 py-2 hover:bg-gray-100">Facturas</Link>
+              <Link href="/supplier/payments" className="block px-6 py-2 hover:bg-gray-100 text-green-600">Pagos Recibidos</Link>
             </>
           )}
 
@@ -358,6 +363,7 @@ export default function Header() {
               <Link href="/supplier/admin-register" className="block px-6 py-2 hover:bg-gray-100">Registrar Proveedor</Link>
               <Link href="/supplier/budgets" className="block px-6 py-2 hover:bg-gray-100">Presupuestos</Link>
               <Link href="/supplier/invoices" className="block px-6 py-2 hover:bg-gray-100">Facturas</Link>
+              <Link href="/admin/supplier-payments" className="block px-6 py-2 hover:bg-gray-100 text-green-600">Pagos a Proveedores</Link>
 
               <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Solicitudes</div>
               <Link href="/admin/budget-requests" className="block px-6 py-2 hover:bg-gray-100">Solicitudes de Presupuesto</Link>
@@ -369,6 +375,7 @@ export default function Header() {
               <Link href="/payments" className="block px-6 py-2 hover:bg-gray-100">Listar Pagos</Link>
               <Link href="/payments/validation" className="block px-6 py-2 hover:bg-gray-100">Validación de Pagos</Link>
               <Link href="/admin/payments" className="block px-6 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
+              <Link href="/admin/supplier-payments" className="block px-6 py-2 hover:bg-gray-100 text-orange-600">Pagos a Proveedores</Link>
 
               <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Contabilidad</div>
               <Link href="/accounting/receivables" className="block px-6 py-2 hover:bg-gray-100">Cuentas por Cobrar</Link>
@@ -397,6 +404,7 @@ export default function Header() {
               <Link href="/receipt/management/create" className="block px-6 py-2 hover:bg-gray-100">Generar Recibos</Link>
               <Link href="/payments/validation" className="block px-6 py-2 hover:bg-gray-100">Validación de Pagos</Link>
               <Link href="/admin/payments" className="block px-6 py-2 hover:bg-gray-100 text-blue-600">Verificación de Pagos</Link>
+              <Link href="/admin/supplier-payments" className="block px-6 py-2 hover:bg-gray-100 text-orange-600">Pagos a Proveedores</Link>
 
               <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Gestión de Fondos</div>
               <Link href="/expenses" className="block px-6 py-2 hover:bg-gray-100 text-red-600">Gastos</Link>

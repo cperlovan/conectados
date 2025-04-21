@@ -8,20 +8,34 @@ import { useToken } from "../../hook/useToken";
 interface Supplier {
   id: string;
   name: string;
-  contact: {
-    phone: string;
-    email: string;
+  type: string;
+  status: string;
+  contactInfo?: {
+    phone?: string;
+    email?: string;
+    address?: string;
+    companyName?: string;
   };
-  user: {
+  contact?: {
     name: string;
     lastname: string;
+    phone: string;
+    email: string;
+    address: string;
+    companyName: string;
   };
-  economicActivities: string[];
+  User: {
+    id: string;
+    name: string;
+    lastname?: string;
+    email: string;
+    status: string;
+  };
 }
 
 export default function SuppliersListPage() {
   const router = useRouter();
-  const token = useToken();
+  const { token, userInfo } = useToken();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -34,7 +48,13 @@ export default function SuppliersListPage() {
           return;
         }
 
-        const response = await fetch("http://localhost:3040/api/suppliers", {
+        if (!userInfo?.condominiumId) {
+          setError("No se pudo determinar el condominio");
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(`http://localhost:3040/api/suppliers/condominium/${userInfo.condominiumId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -50,6 +70,7 @@ export default function SuppliersListPage() {
         }
 
         const data = await response.json();
+        console.log("Datos de proveedores recibidos:", data);
         setSuppliers(data);
       } catch (err) {
         console.error("Error:", err);
@@ -60,7 +81,7 @@ export default function SuppliersListPage() {
     };
 
     fetchSuppliers();
-  }, [token, router]);
+  }, [token, router, userInfo]);
 
   if (loading) {
     return (
@@ -100,13 +121,16 @@ export default function SuppliersListPage() {
                   Nombre
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tipo
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Contacto
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Usuario
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actividades Económicas
+                  Estado
                 </th>
               </tr>
             </thead>
@@ -120,14 +144,22 @@ export default function SuppliersListPage() {
                     {supplier.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>Teléfono: {supplier.contact.phone}</div>
-                    <div>Email: {supplier.contact.email}</div>
+                    {supplier.type === 'individual' ? 'Individual' : 'Empresa'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {supplier.user.name} {supplier.user.lastname}
+                    <div>Teléfono: {supplier.contact?.phone || supplier.contactInfo?.phone || "No disponible"}</div>
+                    <div>Email: {supplier.contact?.email || supplier.contactInfo?.email || supplier.User?.email || "No disponible"}</div>
+                    <div>Dirección: {supplier.contact?.address || supplier.contactInfo?.address || "No disponible"}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {supplier.economicActivities.join(", ")}
+                    {supplier.User?.name || ""} {supplier.User?.lastname || ""}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      supplier.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {supplier.status === 'active' ? 'Activo' : 'Inactivo'}
+                    </span>
                   </td>
                 </tr>
               ))}

@@ -157,6 +157,18 @@ export default function SupplierDashboard() {
               Ver Facturas
             </Link>
           </div>
+
+          {/* Pagos Recibidos */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Pagos Recibidos del Condominio</h2>
+            <p className="text-gray-600">Historial de pagos realizados por administradores de condominios</p>
+            <Link
+              href="/supplier/payments"
+              className="mt-4 inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              Ver Pagos Recibidos
+            </Link>
+          </div>
         </div>
 
         {/* Acciones rápidas */}

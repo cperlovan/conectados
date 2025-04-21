@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test API Supplier Payments</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    button { padding: 10px; margin: 5px; cursor: pointer; }
+    textarea { width: 100%; height: 300px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Test API Supplier Payments</h1>
+  
+  <div>
+    <label for="token">Token JWT:</label>
+    <input type="text" id="token" style="width: 80%;" placeholder="Pegar token aquí">
+  </div>
+  
+  <div>
+    <label for="supplierIdInput">ID del Proveedor:</label>
+    <input type="number" id="supplierIdInput" value="1">
+  </div>
+  
+  <div>
+    <button id="getPayments">Obtener Pagos</button>
+  </div>
+  
+  <textarea id="output" readonly></textarea>
+
+  <script>
+    document.getElementById('getPayments').addEventListener('click', async () => {
+      const token = document.getElementById('token').value;
+      const supplierId = document.getElementById('supplierIdInput').value;
+      const output = document.getElementById('output');
+      
+      if (!token) {
+        output.value = 'Error: Ingrese un token válido';
+        return;
+      }
+      
+      output.value = 'Enviando solicitud...\n';
+      
+      try {
+        const url = `http://localhost:3040/api/supplier-payments/supplier/${supplierId}`;
+        output.value += `URL: ${url}\n`;
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'X-User-Role': 'proveedor'
+          }
+        });
+        
+        output.value += `Status: ${response.status} ${response.statusText}\n`;
+        output.value += `Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}\n\n`;
+        
+        const data = await response.text();
+        
+        try {
+          // Intentar formatear como JSON si es posible
+          const jsonData = JSON.parse(data);
+          output.value += `Datos: ${JSON.stringify(jsonData, null, 2)}`;
+        } catch (e) {
+          // Si no es JSON, mostrar como texto plano
+          output.value += `Datos: ${data}`;
+        }
+      } catch (error) {
+        output.value += `Error: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html> 

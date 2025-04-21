@@ -104,6 +104,7 @@ export default function InvoicesList() {
             }
 
             const supplierData = await supplierResponse.json();
+            console.log('Supplier data received:', supplierData);
 
             if (!supplierData?.id) {
               throw new Error('No se encontró el ID del proveedor');
@@ -130,8 +131,23 @@ export default function InvoicesList() {
         }
 
         const data = await response.json();
-        setInvoices(data.invoices);
-        setStats(data.stats);
+        
+        // Asegurarse de que data.invoices existe, si no, usar un array vacío
+        setInvoices(data.invoices || []);
+        
+        // Asegurarse de que data.stats existe, si no, usar valores por defecto
+        if (data.stats) {
+          setStats(data.stats);
+        } else {
+          // Calcular stats localmente si no vienen del servidor
+          const invoices = data.invoices || [];
+          setStats({
+            total: invoices.length,
+            pending: invoices.filter((i: Invoice) => i.status === 'pending').length,
+            paid: invoices.filter((i: Invoice) => i.status === 'paid').length,
+            cancelled: invoices.filter((i: Invoice) => i.status === 'cancelled').length
+          });
+        }
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Error al cargar las facturas');
       } finally {
@@ -292,7 +308,7 @@ export default function InvoicesList() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(invoice.issueDate).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center space-x-3">
                         <Link
                           href={`/supplier/invoices/${invoice.id}`}
