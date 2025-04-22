@@ -690,394 +690,418 @@ const Page = () => {
             </div>
           </div>
 
-          {/* Filtros y Búsqueda */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center mb-3">
-              <FiFilter className="text-gray-500 mr-2" />
-              <h2 className="text-lg font-medium">Filtros</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* Campo de búsqueda */}
-              <div className="lg:col-span-2">
-                <input
-                  type="text"
-                  placeholder="Buscar por número, tipo, bloque o propietario..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              {/* Filtro por tipo */}
-              <div>
-                <select
-                  value={filters.type}
-                  onChange={(e) => handleFilterChange('type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="all">Todos los tipos</option>
-                  {uniqueTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro por estado */}
-              <div>
-                <select
-                  value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="all">Todos los estados</option>
-                  {uniqueStatuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro por bloque */}
-              <div>
-                <select
-                  value={filters.block}
-                  onChange={(e) => handleFilterChange('block', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="all">Todos los bloques</option>
-                  {uniqueBlocks.map(block => (
-                    <option key={block} value={block}>{block}</option>
-                  ))}
-                </select>
+          {/* Condición para mostrar mensaje si no hay propiedades */}
+          {filteredProperties.length === 0 && searchTerm === '' && filters.type === 'all' && filters.status === 'all' && filters.block === 'all' ? (
+            <div className="text-center py-10 border-t border-gray-200 mt-6">
+              <FiHome className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-lg font-medium text-gray-900">No hay propiedades registradas</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Actualmente no hay propiedades registradas para este condominio. ¡Empieza agregando una!
+              </p>
+              <div className="mt-6">
+                <Button onClick={() => router.push('/property/register')}>
+                  <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                  Registrar Nueva Propiedad
+                </Button>
               </div>
             </div>
-          </div>
-
-          {/* Vista y Paginación */}
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-            <div className="flex items-center space-x-2 mb-4 sm:mb-0">
-              <span className="text-sm text-gray-600">Vista:</span>
-              <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                    viewMode === 'list'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <FiList className="mr-1" />
-                  <span>Lista</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('cards')}
-                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                    viewMode === 'cards'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <FiGrid className="mr-1" />
-                  <span>Tarjetas</span>
-                </button>
+          ) : filteredProperties.length === 0 ? (
+            <div className="text-center py-10 border-t border-gray-200 mt-6">
+              <FiFilter className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-lg font-medium text-gray-900">No se encontraron propiedades</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Ninguna propiedad coincide con los filtros o términos de búsqueda actuales. Intenta ajustarlos.
+              </p>
+              <div className="mt-6">
+                <Button variant="outline" onClick={() => {
+                  setSearchTerm('');
+                  setFilters({ type: 'all', status: 'all', block: 'all' });
+                }}>
+                  Limpiar Filtros
+                </Button>
               </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <select
-                value={rowsPerPage}
-                onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value={5}>5 por página</option>
-                <option value={10}>10 por página</option>
-                <option value={20}>20 por página</option>
-                <option value={50}>50 por página</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Lista de Propiedades */}
-          {viewMode === 'list' ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {visibleColumns.number && (
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('number')}
-                      >
-                        <div className="flex items-center">
-                          <span>Número</span>
-                          {sortConfig.key === 'number' && (
-                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.type && (
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('type')}
-                      >
-                        <div className="flex items-center">
-                          <span>Tipo</span>
-                          {sortConfig.key === 'type' && (
-                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.status && (
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('status')}
-                      >
-                        <div className="flex items-center">
-                          <span>Estado</span>
-                          {sortConfig.key === 'status' && (
-                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.aliquot && (
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('aliquot')}
-                      >
-                        <div className="flex items-center">
-                          <span>Alícuota</span>
-                          {sortConfig.key === 'aliquot' && (
-                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.block && (
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('block')}
-                      >
-                        <div className="flex items-center">
-                          <span>Bloque</span>
-                          {sortConfig.key === 'block' && (
-                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.floor && (
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('floor')}
-                      >
-                        <div className="flex items-center">
-                          <span>Piso</span>
-                          {sortConfig.key === 'floor' && (
-                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.owner && (
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('owner')}
-                      >
-                        <div className="flex items-center">
-                          <span>Propietario</span>
-                          {sortConfig.key === 'owner' && (
-                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
-                          )}
-                        </div>
-                      </th>
-                    )}
-                    {visibleColumns.actions && (
-                      <th
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort('actions')}
-                      >
-                        <div className="flex items-center">
-                          <span>Acciones</span>
-                          {sortConfig.key === 'actions' && (
-                            sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
-                          )}
-                        </div>
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedProperties.map((property) => (
-                    <tr key={property.id} className="hover:bg-gray-50">
-                      {visibleColumns.number && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {property.number}
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.type && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{property.type === 'apartment' ? 'Apartamento' : property.type}</div>
-                        </td>
-                      )}
-                      {visibleColumns.status && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            property.status === "occupied" 
-                              ? "bg-green-100 text-green-800" 
-                              : "bg-red-100 text-red-800"
-                          }`}>
-                            {property.status === "occupied" ? "Ocupado" : "Vacante"}
-                          </span>
-                        </td>
-                      )}
-                      {visibleColumns.aliquot && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{property.aliquot}%</div>
-                        </td>
-                      )}
-                      {visibleColumns.block && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {property.block && <span>Bloque: {property.block}</span>}
-                            {property.block && property.floor && <span> | </span>}
-                            {property.floor && <span>Piso: {property.floor}</span>}
-                            {!property.block && !property.floor && <span>-</span>}
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.floor && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {property.floor && <span>Piso: {property.floor}</span>}
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.owner && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {property.owner ? (
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{property.owner.fullName || "Sin nombre"}</div>
-                              {property.owner.user?.email && (
-                                <div className="text-xs text-gray-500">{property.owner.user.email}</div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500">Sin propietario asignado</div>
-                          )}
-                        </td>
-                      )}
-                      {visibleColumns.actions && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEdit(property.id)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleDelete(property.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {paginatedProperties.map((property) => (
-                <div key={property.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex flex-col">
-                      <div className="font-bold text-xl text-gray-800">
-                        {property.type} {property.number}
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        {property.block && `Bloque ${property.block}`}
-                        {property.floor && ` • Piso ${property.floor}`}
-                      </div>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      property.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {property.status === 'active' ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
+            <>
+              {/* Filtros y Búsqueda */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 border-t border-gray-200 pt-6">
+                <div className="lg:col-span-2">
+                  <input
+                    type="text"
+                    placeholder="Buscar por número, tipo, bloque o propietario..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
 
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">
-                      <div className="flex items-center mb-3">
-                        <FiHome className="text-gray-400 mr-2" />
-                        <span className="font-medium">Alícuota:</span>
-                        <span className="ml-2">{property.aliquot}%</span>
-                      </div>
-                    </div>
+                <div>
+                  <select
+                    value={filters.type}
+                    onChange={(e) => handleFilterChange('type', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">Todos los tipos</option>
+                    {uniqueTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
 
-                    {property.owner && (
-                      <div className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">
-                        <div className="flex items-center">
-                          <FiUser className="text-gray-400 mr-2" />
-                          <span className="font-medium">Propietario:</span>
-                          <span className="ml-2">
-                            {property.owner.fullName || property.owner.user?.name || 'Sin asignar'}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                <div>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => handleFilterChange('status', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">Todos los estados</option>
+                    {uniqueStatuses.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <select
+                    value={filters.block}
+                    onChange={(e) => handleFilterChange('block', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">Todos los bloques</option>
+                    {uniqueBlocks.map(block => (
+                      <option key={block} value={block}>{block}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Vista y Paginación */}
+              <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
+                <div className="flex items-center space-x-2 mb-4 sm:mb-0">
+                  <span className="text-sm text-gray-600">Vista:</span>
+                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                        viewMode === 'list'
+                          ? 'bg-white shadow-sm text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <FiList className="mr-1" />
+                      <span>Lista</span>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('cards')}
+                      className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                        viewMode === 'cards'
+                          ? 'bg-white shadow-sm text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <FiGrid className="mr-1" />
+                      <span>Tarjetas</span>
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
 
-          {/* Paginación */}
-          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center">
-              <span className="text-sm text-gray-700">
-                Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, filteredProperties.length)} de {filteredProperties.length} resultados
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
-              >
-                Anterior
-              </button>
-              <span className="px-3 py-1">
-                Página {currentPage} de {totalPages}
-              </span>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                    className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value={5}>5 por página</option>
+                    <option value={10}>10 por página</option>
+                    <option value={20}>20 por página</option>
+                    <option value={50}>50 por página</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Lista de Propiedades */}
+              {viewMode === 'list' ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {visibleColumns.number && (
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort('number')}
+                          >
+                            <div className="flex items-center">
+                              <span>Número</span>
+                              {sortConfig.key === 'number' && (
+                                sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                              )}
+                            </div>
+                          </th>
+                        )}
+                        {visibleColumns.type && (
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort('type')}
+                          >
+                            <div className="flex items-center">
+                              <span>Tipo</span>
+                              {sortConfig.key === 'type' && (
+                                sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                              )}
+                            </div>
+                          </th>
+                        )}
+                        {visibleColumns.status && (
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort('status')}
+                          >
+                            <div className="flex items-center">
+                              <span>Estado</span>
+                              {sortConfig.key === 'status' && (
+                                sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                              )}
+                            </div>
+                          </th>
+                        )}
+                        {visibleColumns.aliquot && (
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort('aliquot')}
+                          >
+                            <div className="flex items-center">
+                              <span>Alícuota</span>
+                              {sortConfig.key === 'aliquot' && (
+                                sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                              )}
+                            </div>
+                          </th>
+                        )}
+                        {visibleColumns.block && (
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort('block')}
+                          >
+                            <div className="flex items-center">
+                              <span>Bloque</span>
+                              {sortConfig.key === 'block' && (
+                                sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                              )}
+                            </div>
+                          </th>
+                        )}
+                        {visibleColumns.floor && (
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort('floor')}
+                          >
+                            <div className="flex items-center">
+                              <span>Piso</span>
+                              {sortConfig.key === 'floor' && (
+                                sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                              )}
+                            </div>
+                          </th>
+                        )}
+                        {visibleColumns.owner && (
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort('owner')}
+                          >
+                            <div className="flex items-center">
+                              <span>Propietario</span>
+                              {sortConfig.key === 'owner' && (
+                                sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                              )}
+                            </div>
+                          </th>
+                        )}
+                        {visibleColumns.actions && (
+                          <th
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort('actions')}
+                          >
+                            <div className="flex items-center">
+                              <span>Acciones</span>
+                              {sortConfig.key === 'actions' && (
+                                sortConfig.direction === 'asc' ? <FiChevronUp className="ml-1" /> : <FiChevronDown className="ml-1" />
+                              )}
+                            </div>
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {paginatedProperties.map((property) => (
+                        <tr key={property.id} className="hover:bg-gray-50">
+                          {visibleColumns.number && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {property.number}
+                              </div>
+                            </td>
+                          )}
+                          {visibleColumns.type && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{property.type === 'apartment' ? 'Apartamento' : property.type}</div>
+                            </td>
+                          )}
+                          {visibleColumns.status && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                property.status === "occupied" 
+                                  ? "bg-green-100 text-green-800" 
+                                  : "bg-red-100 text-red-800"
+                              }`}>
+                                {property.status === "occupied" ? "Ocupado" : "Vacante"}
+                              </span>
+                            </td>
+                          )}
+                          {visibleColumns.aliquot && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{property.aliquot}%</div>
+                            </td>
+                          )}
+                          {visibleColumns.block && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {property.block && <span>Bloque: {property.block}</span>}
+                                {property.block && property.floor && <span> | </span>}
+                                {property.floor && <span>Piso: {property.floor}</span>}
+                                {!property.block && !property.floor && <span>-</span>}
+                              </div>
+                            </td>
+                          )}
+                          {visibleColumns.floor && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {property.floor && <span>Piso: {property.floor}</span>}
+                              </div>
+                            </td>
+                          )}
+                          {visibleColumns.owner && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {property.owner ? (
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{property.owner.fullName || "Sin nombre"}</div>
+                                  {property.owner.user?.email && (
+                                    <div className="text-xs text-gray-500">{property.owner.user.email}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-gray-500">Sin propietario asignado</div>
+                              )}
+                            </td>
+                          )}
+                          {visibleColumns.actions && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleEdit(property.id)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(property.id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  Eliminar
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {paginatedProperties.map((property) => (
+                    <div key={property.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex flex-col">
+                          <div className="font-bold text-xl text-gray-800">
+                            {property.type} {property.number}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            {property.block && `Bloque ${property.block}`}
+                            {property.floor && ` • Piso ${property.floor}`}
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          property.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {property.status === 'active' ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">
+                          <div className="flex items-center mb-3">
+                            <FiHome className="text-gray-400 mr-2" />
+                            <span className="font-medium">Alícuota:</span>
+                            <span className="ml-2">{property.aliquot}%</span>
+                          </div>
+                        </div>
+
+                        {property.owner && (
+                          <div className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">
+                            <div className="flex items-center">
+                              <FiUser className="text-gray-400 mr-2" />
+                              <span className="font-medium">Propietario:</span>
+                              <span className="ml-2">
+                                {property.owner.fullName || property.owner.user?.name || 'Sin asignar'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Paginación */}
+              <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-700">
+                    Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, filteredProperties.length)} de {filteredProperties.length} resultados
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Anterior
+                  </button>
+                  <span className="px-3 py-1">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

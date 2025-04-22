@@ -20,7 +20,8 @@ import {
   FiList,
   FiGrid,
   FiLayout,
-  FiHome
+  FiHome,
+  FiCheckSquare
 } from 'react-icons/fi';
 import { fetchAPI, Payment, getAllPayments } from '@/app/utils/api';
 import {
@@ -481,485 +482,493 @@ export default function AdminPayments() {
     <div className="min-h-screen bg-gray-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Verificación de Pagos</h1>
-            <button 
+        <div className="bg-white shadow-md rounded-lg p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-6 border-b border-gray-200">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 sm:mb-0">Verificación de Pagos</h1>
+            <Button 
               onClick={fetchPayments}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center hover:bg-blue-700 transition-colors"
               disabled={refreshing}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded inline-flex items-center text-sm font-medium transition-colors duration-150 ease-in-out"
             >
-              <FiRefreshCw className={`mr-1 ${refreshing ? 'animate-spin' : ''}`} /> 
-              {refreshing ? 'Actualizando...' : 'Refrescar'}
-            </button>
+              <FiRefreshCw className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Actualizando...' : 'Actualizar'}
+            </Button>
           </div>
-          
-          <div className="text-gray-500 text-sm mb-6">
-            Total: <span className="font-medium">{payments.length}</span> pagos registrados
-          </div>
-          
-          {/* Filters */}
-          <div className="bg-gray-50 p-4 rounded-md mb-6">
-            <div className="flex items-center mb-3">
-              <FiFilter className="text-gray-500 mr-2" />
-              <h2 className="text-lg font-medium">Filtros</h2>
+
+          {payments.length === 0 ? (
+            <div className="text-center py-20 border-t border-gray-200 mt-6">
+              <FiCheckSquare className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="mt-2 text-xl font-semibold text-gray-900">No hay pagos registrados</h3>
+              <p className="mt-2 text-base text-gray-500">
+                Aún no se ha registrado ningún pago por parte de los copropietarios.
+              </p>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Estado</label>
-                <select 
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
-                >
-                  <option value="all">Todos</option>
-                  <option value="approved">Aprobados</option>
-                  <option value="pending">Pendientes</option>
-                  <option value="rejected">Rechazados</option>
-                  <option value="verified">Verificados</option>
-                </select>
+          ) : (
+            <>
+              <div className="text-gray-500 text-sm mb-6">
+                Total: <span className="font-medium">{payments.length}</span> pagos registrados
               </div>
               
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Año</label>
-                <select 
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filters.year}
-                  onChange={(e) => handleFilterChange('year', e.target.value)}
-                >
-                  <option value="all">Todos</option>
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Propiedad</label>
-                <select 
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filters.property}
-                  onChange={(e) => handleFilterChange('property', e.target.value)}
-                >
-                  <option value="all">Todas</option>
-                  {properties.map(property => (
-                    <option key={property.id} value={property.id}>
-                      {property.type ? `${property.type} ${property.number ? `(${property.number})` : ''}` : 'Sin propiedad'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Método de Pago</label>
-                <select 
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={filters.method}
-                  onChange={(e) => handleFilterChange('method', e.target.value)}
-                >
-                  <option value="all">Todos</option>
-                  {methods.map(method => (
-                    <option key={method} value={method}>
-                      {method === 'transfer' || method === 'bank_transfer' ? 'Transferencia' : 
-                       method === 'cash' ? 'Efectivo' : 
-                       method === 'credit_card' ? 'Tarjeta de Crédito' : 
-                       method === 'debit_card' ? 'Tarjeta de Débito' : 
-                       method === 'mobile_payment' ? 'Pago Móvil' :
-                       method}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Buscar</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="ID, referencia, propiedad..."
-                    value={filters.search}
-                    onChange={(e) => handleFilterChange('search', e.target.value)}
-                    className="w-full p-2 pl-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <div className="bg-gray-50 p-4 rounded-md mb-6">
+                <div className="flex items-center mb-3">
+                  <FiFilter className="text-gray-500 mr-2" />
+                  <h2 className="text-lg font-medium">Filtros</h2>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Estado</label>
+                    <select 
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={filters.status}
+                      onChange={(e) => handleFilterChange('status', e.target.value)}
+                    >
+                      <option value="all">Todos</option>
+                      <option value="approved">Aprobados</option>
+                      <option value="pending">Pendientes</option>
+                      <option value="rejected">Rechazados</option>
+                      <option value="verified">Verificados</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Año</label>
+                    <select 
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={filters.year}
+                      onChange={(e) => handleFilterChange('year', e.target.value)}
+                    >
+                      <option value="all">Todos</option>
+                      {years.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Propiedad</label>
+                    <select 
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={filters.property}
+                      onChange={(e) => handleFilterChange('property', e.target.value)}
+                    >
+                      <option value="all">Todas</option>
+                      {properties.map(property => (
+                        <option key={property.id} value={property.id}>
+                          {property.type ? `${property.type} ${property.number ? `(${property.number})` : ''}` : 'Sin propiedad'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Método de Pago</label>
+                    <select 
+                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={filters.method}
+                      onChange={(e) => handleFilterChange('method', e.target.value)}
+                    >
+                      <option value="all">Todos</option>
+                      {methods.map(method => (
+                        <option key={method} value={method}>
+                          {method === 'transfer' || method === 'bank_transfer' ? 'Transferencia' : 
+                           method === 'cash' ? 'Efectivo' : 
+                           method === 'credit_card' ? 'Tarjeta de Crédito' : 
+                           method === 'debit_card' ? 'Tarjeta de Débito' : 
+                           method === 'mobile_payment' ? 'Pago Móvil' :
+                           method}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">Buscar</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="ID, referencia, propiedad..."
+                        value={filters.search}
+                        onChange={(e) => handleFilterChange('search', e.target.value)}
+                        className="w-full p-2 pl-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Add View Mode Selector */}
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Vista:</span>
-              <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                    viewMode === 'table'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <FiList className="mr-1" />
-                  <span>Tabla</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('kanban')}
-                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                    viewMode === 'kanban'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <FiLayout className="mr-1" />
-                  <span>Tarjetas</span>
-                </button>
-              </div>
-            </div>
-
-            {viewMode === 'table' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <FiColumns />
-                    Columnas
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.id}
-                    onCheckedChange={() => toggleColumnVisibility('id')}
-                  >
-                    ID
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.date}
-                    onCheckedChange={() => toggleColumnVisibility('date')}
-                  >
-                    Fecha
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.amount}
-                    onCheckedChange={() => toggleColumnVisibility('amount')}
-                  >
-                    Monto
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.method}
-                    onCheckedChange={() => toggleColumnVisibility('method')}
-                  >
-                    Método
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.reference}
-                    onCheckedChange={() => toggleColumnVisibility('reference')}
-                  >
-                    Referencia
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.property}
-                    onCheckedChange={() => toggleColumnVisibility('property')}
-                  >
-                    Recibo/Propiedad
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.status}
-                    onCheckedChange={() => toggleColumnVisibility('status')}
-                  >
-                    Estado
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={visibleColumns.actions}
-                    onCheckedChange={() => toggleColumnVisibility('actions')}
-                  >
-                    Acciones
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-
-          {/* Render view based on selected mode */}
-          {viewMode === 'table' ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {visibleColumns.id && (
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('id')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>ID</span>
-                            {sortConfig.key === 'id' && (
-                              <span>
-                                {sortConfig.direction === 'asc' ? (
-                                  <FiChevronUp className="inline" />
-                                ) : sortConfig.direction === 'desc' ? (
-                                  <FiChevronDown className="inline" />
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.date && (
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('date')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Fecha</span>
-                            {sortConfig.key === 'date' && (
-                              <span>
-                                {sortConfig.direction === 'asc' ? (
-                                  <FiChevronUp className="inline" />
-                                ) : sortConfig.direction === 'desc' ? (
-                                  <FiChevronDown className="inline" />
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.amount && (
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('amount')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Monto</span>
-                            {sortConfig.key === 'amount' && (
-                              <span>
-                                {sortConfig.direction === 'asc' ? (
-                                  <FiChevronUp className="inline" />
-                                ) : sortConfig.direction === 'desc' ? (
-                                  <FiChevronDown className="inline" />
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.method && (
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('method')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Método</span>
-                            {sortConfig.key === 'method' && (
-                              <span>
-                                {sortConfig.direction === 'asc' ? (
-                                  <FiChevronUp className="inline" />
-                                ) : sortConfig.direction === 'desc' ? (
-                                  <FiChevronDown className="inline" />
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.reference && (
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('reference')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Referencia</span>
-                            {sortConfig.key === 'reference' && (
-                              <span>
-                                {sortConfig.direction === 'asc' ? (
-                                  <FiChevronUp className="inline" />
-                                ) : sortConfig.direction === 'desc' ? (
-                                  <FiChevronDown className="inline" />
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.property && (
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('property')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Recibo/Propiedad</span>
-                            {sortConfig.key === 'property' && (
-                              <span>
-                                {sortConfig.direction === 'asc' ? (
-                                  <FiChevronUp className="inline" />
-                                ) : sortConfig.direction === 'desc' ? (
-                                  <FiChevronDown className="inline" />
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.status && (
-                        <th 
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleSort('status')}
-                        >
-                          <div className="flex items-center space-x-1">
-                            <span>Estado</span>
-                            {sortConfig.key === 'status' && (
-                              <span>
-                                {sortConfig.direction === 'asc' ? (
-                                  <FiChevronUp className="inline" />
-                                ) : sortConfig.direction === 'desc' ? (
-                                  <FiChevronDown className="inline" />
-                                ) : null}
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                      )}
-                      {visibleColumns.actions && (
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Acciones
-                        </th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {currentItems.map((payment) => (
-                      <tr key={payment.id} className="hover:bg-gray-50">
-                        {visibleColumns.id && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">#{payment.id}</div>
-                          </td>
-                        )}
-                        {visibleColumns.date && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <FiCalendar className="text-gray-400 mr-2" />
-                              <span className="text-sm text-gray-900">
-                                {formatDate(payment.date)}
-                              </span>
-                            </div>
-                          </td>
-                        )}
-                        {visibleColumns.amount && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <FiDollarSign className="text-gray-400 mr-1" />
-                              <span className="text-sm font-medium text-gray-900">
-                                {formatCurrency(payment.amount)}
-                              </span>
-                            </div>
-                          </td>
-                        )}
-                        {visibleColumns.method && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {getPaymentMethodBadge(payment.method)}
-                          </td>
-                        )}
-                        {visibleColumns.reference && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <FiCreditCard className="text-gray-400 mr-2" />
-                              <span className="text-sm text-gray-900">
-                                {payment.reference || 'N/A'}
-                              </span>
-                            </div>
-                          </td>
-                        )}
-                        {visibleColumns.property && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {payment.receipt ? (
-                              <div className="text-sm">
-                                <div className="font-medium text-gray-900">
-                                  {payment.receipt.property ? (
-                                    <>
-                                      {payment.receipt.property.type && 
-                                       `${payment.receipt.property.type.charAt(0).toUpperCase() + payment.receipt.property.type.slice(1)}`}
-                                      {payment.receipt.property.number && ` ${payment.receipt.property.number}`}
-                                    </>
-                                  ) : 'Sin propiedad'}
-                                </div>
-                                <div className="text-gray-500">
-                                  Recibo #{payment.receipt.id} - {payment.receipt.month} {payment.receipt.year}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-sm text-gray-500">Pago directo</span>
-                            )}
-                          </td>
-                        )}
-                        {visibleColumns.status && (
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {getStatusBadge(payment.status)}
-                          </td>
-                        )}
-                        {visibleColumns.actions && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <Link
-                              href={`/admin/payment/${payment.id}`}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              Ver Detalles
-                            </Link>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Pagination */}
-              <div className="py-4 flex justify-center mt-4">
-                <nav className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-1 rounded ${
-                      currentPage === 1
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    Anterior
-                  </button>
-                  
-                  {Array.from({ length: totalPages }, (_, i) => (
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Vista:</span>
+                  <div className="flex bg-gray-100 p-1 rounded-lg">
                     <button
-                      key={i + 1}
-                      onClick={() => handlePageChange(i + 1)}
-                      className={`px-3 py-1 rounded ${
-                        currentPage === i + 1
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      onClick={() => setViewMode('table')}
+                      className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                        viewMode === 'table'
+                          ? 'bg-white shadow-sm text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
-                      {i + 1}
+                      <FiList className="mr-1" />
+                      <span>Tabla</span>
                     </button>
-                  ))}
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className={`px-3 py-1 rounded ${
-                      currentPage === totalPages
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    Siguiente
-                  </button>
-                </nav>
+                    <button
+                      onClick={() => setViewMode('kanban')}
+                      className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                        viewMode === 'kanban'
+                          ? 'bg-white shadow-sm text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <FiLayout className="mr-1" />
+                      <span>Tarjetas</span>
+                    </button>
+                  </div>
+                </div>
+
+                {viewMode === 'table' && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="flex items-center gap-2">
+                        <FiColumns />
+                        Columnas
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuLabel>Columnas Visibles</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.id}
+                        onCheckedChange={() => toggleColumnVisibility('id')}
+                      >
+                        ID
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.date}
+                        onCheckedChange={() => toggleColumnVisibility('date')}
+                      >
+                        Fecha
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.amount}
+                        onCheckedChange={() => toggleColumnVisibility('amount')}
+                      >
+                        Monto
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.method}
+                        onCheckedChange={() => toggleColumnVisibility('method')}
+                      >
+                        Método
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.reference}
+                        onCheckedChange={() => toggleColumnVisibility('reference')}
+                      >
+                        Referencia
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.property}
+                        onCheckedChange={() => toggleColumnVisibility('property')}
+                      >
+                        Recibo/Propiedad
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.status}
+                        onCheckedChange={() => toggleColumnVisibility('status')}
+                      >
+                        Estado
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={visibleColumns.actions}
+                        onCheckedChange={() => toggleColumnVisibility('actions')}
+                      >
+                        Acciones
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
+
+              {viewMode === 'table' ? (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {visibleColumns.id && (
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                              onClick={() => handleSort('id')}
+                            >
+                              <div className="flex items-center space-x-1">
+                                <span>ID</span>
+                                {sortConfig.key === 'id' && (
+                                  <span>
+                                    {sortConfig.direction === 'asc' ? (
+                                      <FiChevronUp className="inline" />
+                                    ) : sortConfig.direction === 'desc' ? (
+                                      <FiChevronDown className="inline" />
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                          )}
+                          {visibleColumns.date && (
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                              onClick={() => handleSort('date')}
+                            >
+                              <div className="flex items-center space-x-1">
+                                <span>Fecha</span>
+                                {sortConfig.key === 'date' && (
+                                  <span>
+                                    {sortConfig.direction === 'asc' ? (
+                                      <FiChevronUp className="inline" />
+                                    ) : sortConfig.direction === 'desc' ? (
+                                      <FiChevronDown className="inline" />
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                          )}
+                          {visibleColumns.amount && (
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                              onClick={() => handleSort('amount')}
+                            >
+                              <div className="flex items-center space-x-1">
+                                <span>Monto</span>
+                                {sortConfig.key === 'amount' && (
+                                  <span>
+                                    {sortConfig.direction === 'asc' ? (
+                                      <FiChevronUp className="inline" />
+                                    ) : sortConfig.direction === 'desc' ? (
+                                      <FiChevronDown className="inline" />
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                          )}
+                          {visibleColumns.method && (
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                              onClick={() => handleSort('method')}
+                            >
+                              <div className="flex items-center space-x-1">
+                                <span>Método</span>
+                                {sortConfig.key === 'method' && (
+                                  <span>
+                                    {sortConfig.direction === 'asc' ? (
+                                      <FiChevronUp className="inline" />
+                                    ) : sortConfig.direction === 'desc' ? (
+                                      <FiChevronDown className="inline" />
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                          )}
+                          {visibleColumns.reference && (
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                              onClick={() => handleSort('reference')}
+                            >
+                              <div className="flex items-center space-x-1">
+                                <span>Referencia</span>
+                                {sortConfig.key === 'reference' && (
+                                  <span>
+                                    {sortConfig.direction === 'asc' ? (
+                                      <FiChevronUp className="inline" />
+                                    ) : sortConfig.direction === 'desc' ? (
+                                      <FiChevronDown className="inline" />
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                          )}
+                          {visibleColumns.property && (
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                              onClick={() => handleSort('property')}
+                            >
+                              <div className="flex items-center space-x-1">
+                                <span>Recibo/Propiedad</span>
+                                {sortConfig.key === 'property' && (
+                                  <span>
+                                    {sortConfig.direction === 'asc' ? (
+                                      <FiChevronUp className="inline" />
+                                    ) : sortConfig.direction === 'desc' ? (
+                                      <FiChevronDown className="inline" />
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                          )}
+                          {visibleColumns.status && (
+                            <th 
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                              onClick={() => handleSort('status')}
+                            >
+                              <div className="flex items-center space-x-1">
+                                <span>Estado</span>
+                                {sortConfig.key === 'status' && (
+                                  <span>
+                                    {sortConfig.direction === 'asc' ? (
+                                      <FiChevronUp className="inline" />
+                                    ) : sortConfig.direction === 'desc' ? (
+                                      <FiChevronDown className="inline" />
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
+                            </th>
+                          )}
+                          {visibleColumns.actions && (
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Acciones
+                            </th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {currentItems.map((payment) => (
+                          <tr key={payment.id} className="hover:bg-gray-50">
+                            {visibleColumns.id && (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">#{payment.id}</div>
+                              </td>
+                            )}
+                            {visibleColumns.date && (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <FiCalendar className="text-gray-400 mr-2" />
+                                  <span className="text-sm text-gray-900">
+                                    {formatDate(payment.date)}
+                                  </span>
+                                </div>
+                              </td>
+                            )}
+                            {visibleColumns.amount && (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <FiDollarSign className="text-gray-400 mr-1" />
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {formatCurrency(payment.amount)}
+                                  </span>
+                                </div>
+                              </td>
+                            )}
+                            {visibleColumns.method && (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {getPaymentMethodBadge(payment.method)}
+                              </td>
+                            )}
+                            {visibleColumns.reference && (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <FiCreditCard className="text-gray-400 mr-2" />
+                                  <span className="text-sm text-gray-900">
+                                    {payment.reference || 'N/A'}
+                                  </span>
+                                </div>
+                              </td>
+                            )}
+                            {visibleColumns.property && (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {payment.receipt ? (
+                                  <div className="text-sm">
+                                    <div className="font-medium text-gray-900">
+                                      {payment.receipt.property ? (
+                                        <>
+                                          {payment.receipt.property.type && 
+                                           `${payment.receipt.property.type.charAt(0).toUpperCase() + payment.receipt.property.type.slice(1)}`}
+                                          {payment.receipt.property.number && ` ${payment.receipt.property.number}`}
+                                        </>
+                                      ) : 'Sin propiedad'}
+                                    </div>
+                                    <div className="text-gray-500">
+                                      Recibo #{payment.receipt.id} - {payment.receipt.month} {payment.receipt.year}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-gray-500">Pago directo</span>
+                                )}
+                              </td>
+                            )}
+                            {visibleColumns.status && (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {getStatusBadge(payment.status)}
+                              </td>
+                            )}
+                            {visibleColumns.actions && (
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <Link
+                                  href={`/admin/payment/${payment.id}`}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  Ver Detalles
+                                </Link>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="py-4 flex justify-center mt-4">
+                    <nav className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`px-3 py-1 rounded ${
+                          currentPage === 1
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        Anterior
+                      </button>
+                      
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                          key={i + 1}
+                          onClick={() => handlePageChange(i + 1)}
+                          className={`px-3 py-1 rounded ${
+                            currentPage === i + 1
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                      
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`px-3 py-1 rounded ${
+                          currentPage === totalPages
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        Siguiente
+                      </button>
+                    </nav>
+                  </div>
+                </>
+              ) : (
+                <KanbanBoard />
+              )}
             </>
-          ) : (
-            <KanbanBoard />
           )}
         </div>
       </div>

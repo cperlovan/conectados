@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useToken } from '../../hook/useToken'
 import Header from '../../components/Header'
-import { FiEye, FiDollarSign, FiFileText } from 'react-icons/fi'
+import { FiEye, FiDollarSign, FiFileText, FiInbox, FiArchive, FiPlus } from 'react-icons/fi'
+import { Button } from '../../components/ui/button'
 import { getPendingInvoices, getSupplierPayments } from '../../actions/supplierPayments'
 
 interface Supplier {
@@ -179,9 +180,13 @@ export default function SupplierPaymentsPage() {
         {/* Contenido de pestañas */}
         {activeTab === 'pending' ? (
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            {pendingInvoices.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
-                No hay facturas pendientes de pago
+            {!loading && !error && pendingInvoices.length === 0 ? (
+              <div className="text-center py-20 border-t border-gray-200">
+                <FiInbox className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                <h3 className="mt-2 text-xl font-semibold text-gray-900">No hay facturas pendientes</h3>
+                <p className="mt-2 text-base text-gray-500">
+                  Actualmente no hay facturas aprobadas esperando ser pagadas.
+                </p>
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
@@ -266,9 +271,22 @@ export default function SupplierPaymentsPage() {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
-            {payments.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
-                No hay pagos a proveedores registrados
+            {!loading && !error && payments.length === 0 ? (
+              <div className="text-center py-20 border-t border-gray-200">
+                <FiArchive className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                <h3 className="mt-2 text-xl font-semibold text-gray-900">No hay historial de pagos</h3>
+                <p className="mt-2 text-base text-gray-500">
+                  Aún no se ha registrado ningún pago a proveedores.
+                </p>
+                <div className="mt-8">
+                  <Button 
+                    onClick={() => router.push('/admin/supplier-payments/new')}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 inline-flex items-center text-sm font-medium transition-colors duration-150 ease-in-out"
+                  >
+                    <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                    Registrar Nuevo Pago
+                  </Button>
+                </div>
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useToken } from "../../hook/useToken";
 import Header from "../../components/Header";
 import Link from "next/link";
-import { FiFilter, FiPlus } from "react-icons/fi";
+import { FiFilter, FiPlus, FiClipboard } from "react-icons/fi";
+import { Button } from "@/components/ui/button";
 
 interface BudgetRequest {
   id: number;
@@ -276,189 +277,167 @@ export default function BudgetRequestsList() {
     <div className="min-h-screen bg-gray-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Solicitudes de Presupuesto</h1>
-          <Link
-            href="/admin/budget-requests/new"
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"
-          >
-            <FiPlus className="mr-2" />
-            Nueva Solicitud
-          </Link>
-        </div>
-
-        {/* Filters */}
-        <div className="mb-6 p-4 bg-white rounded-lg shadow">
-          <div className="flex items-center mb-2">
-            <FiFilter className="mr-2 text-gray-500" />
-            <h2 className="text-lg font-medium text-gray-700">Filtros</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estado
-              </label>
-              <select
-                value={selectedStatus === null ? 'all' : selectedStatus}
-                onChange={handleStatusFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="bg-white shadow-md rounded-lg p-6">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-6 border-b border-gray-200">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 sm:mb-0">Solicitudes de Presupuesto</h1>
+            {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
+              <Link
+                href="/admin/budget-requests/new"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 inline-flex items-center text-sm font-medium transition-colors duration-150 ease-in-out"
               >
-                <option value="all">Todos los estados</option>
-                <option value="pending">Pendiente</option>
-                <option value="in_progress">En Progreso</option>
-                <option value="completed">Completado</option>
-                <option value="cancelled">Cancelado</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mes
-              </label>
-              <select
-                value={selectedMonth === null ? 'all' : selectedMonth}
-                onChange={handleMonthFilterChange}
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Todos los meses</option>
-                <option value="0">Enero</option>
-                <option value="1">Febrero</option>
-                <option value="2">Marzo</option>
-                <option value="3">Abril</option>
-                <option value="4">Mayo</option>
-                <option value="5">Junio</option>
-                <option value="6">Julio</option>
-                <option value="7">Agosto</option>
-                <option value="8">Septiembre</option>
-                <option value="9">Octubre</option>
-                <option value="10">Noviembre</option>
-                <option value="11">Diciembre</option>
-              </select>
-            </div>
+                <FiPlus className="mr-2 h-4 w-4" />
+                Nueva Solicitud
+              </Link>
+            )}
           </div>
-        </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Total</h3>
-            <p className="text-2xl">{stats.total}</p>
-          </div>
-          <div className="bg-yellow-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Pendientes</h3>
-            <p className="text-2xl">{stats.pending}</p>
-          </div>
-          <div className="bg-blue-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">En Progreso</h3>
-            <p className="text-2xl">{stats.inProgress}</p>
-          </div>
-          <div className="bg-green-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Completadas</h3>
-            <p className="text-2xl">{stats.completed}</p>
-          </div>
-          <div className="bg-red-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Canceladas</h3>
-            <p className="text-2xl">{stats.cancelled}</p>
-          </div>
-        </div>
+          {/* Conditional Rendering: Loading / Error / Empty / Content */}
+          {loading ? (
+            <div className="text-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto mb-4"></div>
+              <p className="text-gray-600">Cargando solicitudes...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          ) : requests.length === 0 ? (
+            // Empty State 
+            <div className="text-center py-20 border-t border-gray-200 mt-6">
+              <FiClipboard className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="mt-2 text-xl font-semibold text-gray-900">No hay solicitudes de presupuesto</h3>
+              <p className="mt-2 text-base text-gray-500">
+                Actualmente no se han creado solicitudes de presupuesto para este condominio.
+              </p>
+              {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
+                <div className="mt-8">
+                  <Button onClick={() => router.push('/admin/budget-requests/new')}>
+                    <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                    Crear Nueva Solicitud
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            // Content when requests exist
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6 border-b border-gray-200 pb-6">
+                <div className="bg-gray-50 p-4 rounded shadow border">
+                  <h3 className="text-lg font-semibold text-gray-700">Total</h3>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
+                </div>
+                <div className="bg-yellow-50 p-4 rounded shadow border border-yellow-200">
+                  <h3 className="text-lg font-semibold text-yellow-800">Pendientes</h3>
+                  <p className="text-2xl font-semibold text-yellow-900">{stats.pending}</p>
+                </div>
+                <div className="bg-blue-50 p-4 rounded shadow border border-blue-200">
+                  <h3 className="text-lg font-semibold text-blue-800">En Progreso</h3>
+                  <p className="text-2xl font-semibold text-blue-900">{stats.inProgress}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded shadow border border-green-200">
+                  <h3 className="text-lg font-semibold text-green-800">Completadas</h3>
+                  <p className="text-2xl font-semibold text-green-900">{stats.completed}</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded shadow border border-red-200">
+                  <h3 className="text-lg font-semibold text-red-800">Canceladas</h3>
+                  <p className="text-2xl font-semibold text-red-900">{stats.cancelled}</p>
+                </div>
+              </div>
 
-        {/* Requests Table */}
-        {filteredRequests.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <p className="text-gray-600">No hay solicitudes de presupuesto</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Título
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Descripción
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Proveedores
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Presupuestos
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha de Vencimiento
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredRequests.map((request) => (
-                  <tr key={request.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{request.title}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{request.description}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {request.suppliers.length} proveedor{request.suppliers.length !== 1 ? 'es' : ''}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {request.budgets.length} presupuesto{request.budgets.length !== 1 ? 's' : ''}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(request.status)}`}>
-                        {getStatusText(request.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(request.dueDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link
-                        href={`/admin/budget-requests/${request.id}`}
-                        className="text-green-600 hover:text-green-900 mr-3"
-                      >
-                        Ver
-                      </Link>
-                      {request.status === 'pending' && (
-                        <button
-                          onClick={() => handleStatusChange(request.id, 'in_progress')}
-                          className="text-blue-600 hover:text-blue-900 mr-3"
-                        >
-                          Iniciar
-                        </button>
-                      )}
-                      {request.status === 'in_progress' && (
-                        <button
-                          onClick={() => handleStatusChange(request.id, 'completed')}
-                          className="text-green-600 hover:text-green-900 mr-3"
-                        >
-                          Completar
-                        </button>
-                      )}
-                      {(request.status === 'pending' || request.status === 'in_progress') && (
-                        <button
-                          onClick={() => handleStatusChange(request.id, 'cancelled')}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              {/* Filters */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center mb-2">
+                  <FiFilter className="mr-2 text-gray-500" />
+                  <h3 className="text-lg font-semibold text-gray-700">Filtrar Solicitudes</h3>
+                </div>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <select
+                    value={selectedStatus || 'all'}
+                    onChange={handleStatusFilterChange}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">Todos los estados</option>
+                    <option value="pending">Pendiente</option>
+                    <option value="in_progress">En Progreso</option>
+                    <option value="completed">Completado</option>
+                    <option value="cancelled">Cancelado</option>
+                  </select>
+                  <select
+                    value={selectedMonth === null ? 'all' : selectedMonth}
+                    onChange={handleMonthFilterChange}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">Todos los meses (Fecha Límite)</option>
+                    <option value="0">Enero</option>
+                    <option value="1">Febrero</option>
+                    <option value="2">Marzo</option>
+                    <option value="3">Abril</option>
+                    <option value="4">Mayo</option>
+                    <option value="5">Junio</option>
+                    <option value="6">Julio</option>
+                    <option value="7">Agosto</option>
+                    <option value="8">Septiembre</option>
+                    <option value="9">Octubre</option>
+                    <option value="10">Noviembre</option>
+                    <option value="11">Diciembre</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Requests Table */}
+              {filteredRequests.length === 0 ? (
+                <div className="text-center py-10 border-t border-gray-200">
+                  <p className="text-gray-600">No hay solicitudes que coincidan con los filtros seleccionados.</p>
+                </div>
+               ) : (
+                <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Límite</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proveedores</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredRequests.map((request) => (
+                        <tr key={request.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{request.title}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-500 truncate max-w-xs">{request.description}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(request.status)}`}>
+                              {getStatusText(request.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(request.dueDate).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {request.suppliers?.length || 0} asignados
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <Link href={`/admin/budget-requests/${request.id}`} className="text-indigo-600 hover:text-indigo-900">
+                              Ver Detalles
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+               )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ import Link from "next/link";
 import Cookies from 'js-cookie';
 import { getToken, getUser } from '@/lib/auth';
 import { Budget } from '@/types/budget';
-import { FiFilter, FiChevronDown, FiChevronUp, FiEye, FiList, FiLayout, FiMail, FiPhone, FiColumns, FiEdit2, FiTrash2, FiPlus } from 'react-icons/fi';
+import { FiFilter, FiChevronDown, FiChevronUp, FiEye, FiList, FiLayout, FiMail, FiPhone, FiColumns, FiEdit2, FiTrash2, FiPlus, FiFileText } from 'react-icons/fi';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { es } from 'date-fns/locale';
 
 interface BudgetStats {
   total: number;
@@ -508,286 +509,308 @@ export default function BudgetsList() {
     <div className="min-h-screen bg-gray-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Presupuestos</h1>
-            <div className="text-gray-500 text-sm">
-              Total: <span className="font-medium">{stats.total}</span> presupuestos
+        <div className="bg-white shadow-md rounded-lg p-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Gestión de Presupuestos</h1>
+              <p className="text-sm text-gray-500">Administra tus presupuestos enviados o recibidos.</p>
             </div>
-          </div>
-
-          <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center">
-                  <FiEye className="mr-2" />
-                  Columnas
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Columnas visibles</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {columns.map(column => (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    checked={column.visible}
-                    onCheckedChange={() => toggleColumnVisibility(column.id)}
-                  >
-                    {column.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {userInfo && (userInfo.role === 'proveedor' || userInfo.role === 'supplier') && (
-              <Link
-                href="/supplier/budgets/new"
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 inline-flex items-center"
-              >
-                <FiPlus className="mr-2" />
-                Nuevo Presupuesto
-              </Link>
+            {(userInfo?.role === 'supplier' || userInfo?.role === 'proveedor') && (
+              <Button onClick={() => router.push('/supplier/budgets/new')} className="bg-green-600 hover:bg-green-700 text-white">
+                <FiPlus className="mr-2 h-4 w-4" /> Nuevo Presupuesto
+              </Button>
             )}
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Total</h3>
-            <p className="text-2xl">{stats.total}</p>
-          </div>
-          <div className="bg-yellow-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Pendientes</h3>
-            <p className="text-2xl">{stats.pending}</p>
-          </div>
-          <div className="bg-green-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Aprobados</h3>
-            <p className="text-2xl">{stats.approved}</p>
-          </div>
-          <div className="bg-red-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Rechazados</h3>
-            <p className="text-2xl">{stats.rejected}</p>
-          </div>
-        </div>
-
-        <div className="bg-white shadow-md rounded-lg p-6">
-          {/* Search and filter container */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Buscar por título, descripción o proveedor..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div className="flex items-center gap-4">
-                <select
-                  value={selectedMonth === null ? 'all' : selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value === 'all' ? null : parseInt(e.target.value, 10))}
-                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="all">Todos los meses</option>
-                  <option value="0">Enero</option>
-                  <option value="1">Febrero</option>
-                  <option value="2">Marzo</option>
-                  <option value="3">Abril</option>
-                  <option value="4">Mayo</option>
-                  <option value="5">Junio</option>
-                  <option value="6">Julio</option>
-                  <option value="7">Agosto</option>
-                  <option value="8">Septiembre</option>
-                  <option value="9">Octubre</option>
-                  <option value="10">Noviembre</option>
-                  <option value="11">Diciembre</option>
-                </select>
-                <select
-                  value={rowsPerPage}
-                  onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value={5}>5 por página</option>
-                  <option value={10}>10 por página</option>
-                  <option value={20}>20 por página</option>
-                  <option value={50}>50 por página</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* View mode selector */}
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Vista:</span>
-              <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                    viewMode === 'table'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <FiList className="mr-1" />
-                  <span>Tabla</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('kanban')}
-                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                    viewMode === 'kanban'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <FiLayout className="mr-1" />
-                  <span>Tarjetas</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Content based on view mode */}
-          {filteredBudgets.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-6 text-center">
-              <p className="text-gray-600">No hay presupuestos que coincidan con los criterios de búsqueda</p>
-            </div>
-          ) : viewMode === 'table' ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {columns.map(column => column.visible && (
-                      <th
-                        key={column.id}
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => column.sortable && handleSort(column.id)}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>{column.label}</span>
-                          {column.sortable && sortConfig.key === column.id && (
-                            <span>
-                              {sortConfig.direction === 'asc' ? (
-                                <FiChevronUp className="inline" />
-                              ) : sortConfig.direction === 'desc' ? (
-                                <FiChevronDown className="inline" />
-                              ) : null}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentBudgets.map((budget) => (
-                    <tr key={budget.id} className="hover:bg-gray-50">
-                      {columns.find(col => col.id === 'title')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{budget.title}</div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'supplier')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {budget.supplier?.name || 'N/A'}
-                          </div>
-                          {userInfo && (userInfo.role === 'admin' || userInfo.role === 'superadmin') && budget.supplier?.User && (
-                            <div className="text-xs text-gray-500">
-                              {budget.supplier.User.email || ''}
-                            </div>
-                          )}
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'description')?.visible && (
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 truncate max-w-xs">{budget.description}</div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'amount')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            ${typeof budget.amount === 'number' ? budget.amount.toFixed(2) : Number(budget.amount).toFixed(2)}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'status')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(budget.status)}`}>
-                            {budget.status === 'pending' ? 'Pendiente' : 
-                             budget.status === 'approved' ? 'Aprobado' : 'Rechazado'}
-                          </span>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'dueDate')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(budget.dueDate).toLocaleDateString()}
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'actions')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Link
-                            href={`/supplier/budgets/${budget.id}`}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                          >
-                            Ver
-                          </Link>
-                          {userInfo && (userInfo.role === 'proveedor' || userInfo.role === 'supplier') && budget.status === 'pending' && (
-                            <>
-                              <Link
-                                href={`/supplier/budgets/${budget.id}/edit`}
-                                className="text-blue-600 hover:text-blue-900 mr-3"
-                              >
-                                Editar
-                              </Link>
-                              <button
-                                onClick={() => setDeleteConfirmId(budget.id)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                Eliminar
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Empty State Check */}
+          {!loading && !error && budgets.length === 0 ? (
+            <div className="text-center py-20 border-t border-gray-200 mt-6">
+              <FiFileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="mt-2 text-xl font-semibold text-gray-900">No hay presupuestos registrados</h3>
+              <p className="mt-2 text-base text-gray-500">
+                Aún no has creado ni recibido ningún presupuesto.
+                {(userInfo?.role === 'supplier' || userInfo?.role === 'proveedor') && " ¡Empieza creando uno!"}
+              </p>
+              {(userInfo?.role === 'supplier' || userInfo?.role === 'proveedor') && (
+                <div className="mt-8">
+                  <Button onClick={() => router.push('/supplier/budgets/new')}>
+                    <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                    Crear Nuevo Presupuesto
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
-            <KanbanBoard />
-          )}
+            <> 
+              {/* Stats and Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 border-y border-gray-200 py-4">
+                <div className="bg-white p-4 rounded shadow">
+                  <h3 className="text-lg font-semibold">Total</h3>
+                  <p className="text-2xl">{stats.total}</p>
+                </div>
+                <div className="bg-yellow-100 p-4 rounded shadow">
+                  <h3 className="text-lg font-semibold">Pendientes</h3>
+                  <p className="text-2xl">{stats.pending}</p>
+                </div>
+                <div className="bg-green-100 p-4 rounded shadow">
+                  <h3 className="text-lg font-semibold">Aprobados</h3>
+                  <p className="text-2xl">{stats.approved}</p>
+                </div>
+                <div className="bg-red-100 p-4 rounded shadow">
+                  <h3 className="text-lg font-semibold">Rechazados</h3>
+                  <p className="text-2xl">{stats.rejected}</p>
+                </div>
+              </div>
 
-          {/* Pagination controls */}
-          <div className="mt-4 flex items-center justify-between">
-            <div className="flex items-center">
-              <span className="text-sm text-gray-700">
-                Mostrando {filteredBudgets.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0} a {Math.min(currentPage * rowsPerPage, filteredBudgets.length)} de {filteredBudgets.length} resultados
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
-              >
-                Anterior
-              </button>
-              <span className="px-3 py-1">
-                Página {currentPage} de {totalPages || 1}
-              </span>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages || totalPages === 0}
-                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Presupuestos</h1>
+                </div>
+
+                <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="flex items-center">
+                        <FiEye className="mr-2" />
+                        Columnas
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>Columnas visibles</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {columns.map(column => (
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          checked={column.visible}
+                          onCheckedChange={() => toggleColumnVisibility(column.id)}
+                        >
+                          {column.label}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+
+              {/* Search and filter container */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Buscar por título, descripción o proveedor..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <select
+                      value={selectedMonth === null ? 'all' : selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value === 'all' ? null : parseInt(e.target.value, 10))}
+                      className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">Todos los meses</option>
+                      <option value="0">Enero</option>
+                      <option value="1">Febrero</option>
+                      <option value="2">Marzo</option>
+                      <option value="3">Abril</option>
+                      <option value="4">Mayo</option>
+                      <option value="5">Junio</option>
+                      <option value="6">Julio</option>
+                      <option value="7">Agosto</option>
+                      <option value="8">Septiembre</option>
+                      <option value="9">Octubre</option>
+                      <option value="10">Noviembre</option>
+                      <option value="11">Diciembre</option>
+                    </select>
+                    <select
+                      value={rowsPerPage}
+                      onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                      className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value={5}>5 por página</option>
+                      <option value={10}>10 por página</option>
+                      <option value={20}>20 por página</option>
+                      <option value={50}>50 por página</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* View mode selector */}
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Vista:</span>
+                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                        viewMode === 'table'
+                          ? 'bg-white shadow-sm text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <FiList className="mr-1" />
+                      <span>Tabla</span>
+                    </button>
+                    <button
+                      onClick={() => setViewMode('kanban')}
+                      className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                        viewMode === 'kanban'
+                          ? 'bg-white shadow-sm text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <FiLayout className="mr-1" />
+                      <span>Tarjetas</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content based on view mode */}
+              {filteredBudgets.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-6 text-center">
+                  <p className="text-gray-600">No hay presupuestos que coincidan con los criterios de búsqueda</p>
+                </div>
+              ) : viewMode === 'table' ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {columns.map(column => column.visible && (
+                          <th
+                            key={column.id}
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => column.sortable && handleSort(column.id)}
+                          >
+                            <div className="flex items-center space-x-1">
+                              <span>{column.label}</span>
+                              {column.sortable && sortConfig.key === column.id && (
+                                <span>
+                                  {sortConfig.direction === 'asc' ? (
+                                    <FiChevronUp className="inline" />
+                                  ) : sortConfig.direction === 'desc' ? (
+                                    <FiChevronDown className="inline" />
+                                  ) : null}
+                                </span>
+                              )}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentBudgets.map((budget) => (
+                        <tr key={budget.id} className="hover:bg-gray-50">
+                          {columns.find(col => col.id === 'title')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{budget.title}</div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'supplier')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {budget.supplier?.name || 'N/A'}
+                              </div>
+                              {userInfo && (userInfo.role === 'admin' || userInfo.role === 'superadmin') && budget.supplier?.User && (
+                                <div className="text-xs text-gray-500">
+                                  {budget.supplier.User.email || ''}
+                                </div>
+                              )}
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'description')?.visible && (
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-900 truncate max-w-xs">{budget.description}</div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'amount')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                ${typeof budget.amount === 'number' ? budget.amount.toFixed(2) : Number(budget.amount).toFixed(2)}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'status')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(budget.status)}`}>
+                                {budget.status === 'pending' ? 'Pendiente' : 
+                                 budget.status === 'approved' ? 'Aprobado' : 'Rechazado'}
+                              </span>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'dueDate')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(budget.dueDate).toLocaleDateString()}
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'actions')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <Link
+                                href={`/supplier/budgets/${budget.id}`}
+                                className="text-green-600 hover:text-green-900 mr-3"
+                              >
+                                Ver
+                              </Link>
+                              {userInfo && (userInfo.role === 'proveedor' || userInfo.role === 'supplier') && budget.status === 'pending' && (
+                                <>
+                                  <Link
+                                    href={`/supplier/budgets/${budget.id}/edit`}
+                                    className="text-blue-600 hover:text-blue-900 mr-3"
+                                  >
+                                    Editar
+                                  </Link>
+                                  <button
+                                    onClick={() => setDeleteConfirmId(budget.id)}
+                                    className="text-red-600 hover:text-red-900"
+                                  >
+                                    Eliminar
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <KanbanBoard />
+              )}
+
+              {/* Pagination controls */}
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-700">
+                    Mostrando {filteredBudgets.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0} a {Math.min(currentPage * rowsPerPage, filteredBudgets.length)} de {filteredBudgets.length} resultados
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Anterior
+                  </button>
+                  <span className="px-3 py-1">
+                    Página {currentPage} de {totalPages || 1}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
       

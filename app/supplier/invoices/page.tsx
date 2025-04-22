@@ -6,6 +6,8 @@ import { useToken } from "../../hook/useToken";
 import Header from "../../components/Header";
 import Link from "next/link";
 import Image from 'next/image';
+import { FiFileText, FiPlus } from 'react-icons/fi';
+import { Button } from "../../components/ui/button";
 
 interface Invoice {
   id: number;
@@ -199,153 +201,168 @@ export default function InvoicesList() {
     <div className="min-h-screen bg-gray-100">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Facturas</h1>
-          {(userInfo?.role === 'proveedor' || userInfo?.role === 'supplier') && (
-            <Link
-              href="/supplier/invoices/new"
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-            >
-              Nueva Factura
-            </Link>
-          )}
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Total</h3>
-            <p className="text-2xl">{stats.total}</p>
-          </div>
-          <div className="bg-yellow-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Pendientes</h3>
-            <p className="text-2xl">{stats.pending}</p>
-          </div>
-          <div className="bg-green-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Pagadas</h3>
-            <p className="text-2xl">{stats.paid}</p>
-          </div>
-          <div className="bg-red-100 p-4 rounded shadow">
-            <h3 className="text-lg font-semibold">Canceladas</h3>
-            <p className="text-2xl">{stats.cancelled}</p>
-          </div>
-        </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        {invoices.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <p className="text-gray-600">No hay facturas creadas</p>
-            {userInfo?.role === 'proveedor' && (
+        <div className="bg-white shadow-md rounded-lg p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-6 border-b border-gray-200">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 sm:mb-0">Facturas</h1>
+            {(userInfo?.role === 'proveedor' || userInfo?.role === 'supplier') && (
               <Link
                 href="/supplier/invoices/new"
-                className="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 inline-flex items-center text-sm font-medium transition-colors duration-150 ease-in-out"
               >
-                Crear Primera Factura
+                <FiPlus className="mr-2 h-4 w-4" />
+                Nueva Factura
               </Link>
             )}
           </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Número
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Presupuesto
-                  </th>
-                  {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Proveedor
-                    </th>
-                  )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Monto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {invoices.map((invoice) => (
-                  <tr key={invoice.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{invoice.number}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {invoice.budget?.description || `Presupuesto #${invoice.budgetId}`}
-                      </div>
-                    </td>
-                    {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {invoice.supplier?.name || 'N/A'}
-                        </div>
-                      </td>
-                    )}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">${formatAmount(invoice.amount)}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
-                        {invoice.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(invoice.issueDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center space-x-3">
-                        <Link
-                          href={`/supplier/invoices/${invoice.id}`}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Ver
-                        </Link>
-                        {userInfo?.role === 'proveedor' && invoice.status === 'pending' && (
-                          <>
-                            <Link
-                              href={`/supplier/invoices/${invoice.id}/edit`}
-                              className="text-yellow-600 hover:text-yellow-900"
-                            >
-                              Editar
-                            </Link>
-                            <button
-                              onClick={() => handleDelete(invoice.id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              Eliminar
-                            </button>
-                          </>
+
+          {loading ? (
+            <div className="text-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto mb-4"></div>
+              <p className="text-gray-600">Cargando facturas...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              {error}
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="text-center py-20 border-t border-gray-200 mt-6">
+              <FiFileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="mt-2 text-xl font-semibold text-gray-900">No hay facturas registradas</h3>
+              <p className="mt-2 text-base text-gray-500">
+                Aún no has creado ni recibido ninguna factura.
+                {(userInfo?.role === 'supplier' || userInfo?.role === 'proveedor') && " ¡Empieza creando una!"}
+              </p>
+              {(userInfo?.role === 'supplier' || userInfo?.role === 'proveedor') && (
+                <div className="mt-8">
+                  <Button 
+                    onClick={() => router.push('/supplier/invoices/new')}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 inline-flex items-center text-sm font-medium transition-colors duration-150 ease-in-out"
+                  >
+                    <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                    Crear Primera Factura
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 border-t border-gray-200 pt-6">
+                <div className="bg-gray-50 p-4 rounded shadow border">
+                  <h3 className="text-lg font-semibold text-gray-700">Total</h3>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
+                </div>
+                <div className="bg-yellow-50 p-4 rounded shadow border border-yellow-200">
+                  <h3 className="text-lg font-semibold text-yellow-800">Pendientes</h3>
+                  <p className="text-2xl font-semibold text-yellow-900">{stats.pending}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded shadow border border-green-200">
+                  <h3 className="text-lg font-semibold text-green-800">Pagadas</h3>
+                  <p className="text-2xl font-semibold text-green-900">{stats.paid}</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded shadow border border-red-200">
+                  <h3 className="text-lg font-semibold text-red-800">Canceladas</h3>
+                  <p className="text-2xl font-semibold text-red-900">{stats.cancelled}</p>
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto pt-6 border-t border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Número
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Presupuesto
+                      </th>
+                      {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Proveedor
+                        </th>
+                      )}
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Monto
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fecha
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {invoices.map((invoice) => (
+                      <tr key={invoice.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{invoice.number}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {invoice.budget?.description || `Presupuesto #${invoice.budgetId}`}
+                          </div>
+                        </td>
+                        {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900">
+                              {invoice.supplier?.name || 'N/A'}
+                            </div>
+                          </td>
                         )}
-                        <button
-                          onClick={() => window.open(`/supplier/invoices/${invoice.id}/print`, '_blank')}
-                          className="text-gray-600 hover:text-gray-900"
-                        >
-                          Imprimir
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">${formatAmount(invoice.amount)}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
+                            {invoice.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(invoice.issueDate).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex items-center space-x-3">
+                            <Link
+                              href={`/supplier/invoices/${invoice.id}`}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              Ver
+                            </Link>
+                            {userInfo?.role === 'proveedor' && invoice.status === 'pending' && (
+                              <>
+                                <Link
+                                  href={`/supplier/invoices/${invoice.id}/edit`}
+                                  className="text-yellow-600 hover:text-yellow-900"
+                                >
+                                  Editar
+                                </Link>
+                                <button
+                                  onClick={() => handleDelete(invoice.id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  Eliminar
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => window.open(`/supplier/invoices/${invoice.id}/print`, '_blank')}
+                              className="text-gray-600 hover:text-gray-900"
+                            >
+                              Imprimir
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

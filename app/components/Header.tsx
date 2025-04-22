@@ -139,6 +139,22 @@ export default function Header() {
                   )}
                 </div>
 
+                {/* Condominio (NUEVO) */}
+                <div className="relative dropdown-container">
+                  <button
+                    onClick={() => toggleDropdown('condominio')}
+                    className="flex items-center hover:text-gray-500"
+                  >
+                    Condominio <FiChevronDown className="ml-1" />
+                  </button>
+                  {activeDropdown === 'condominio' && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
+                      <Link href="/admin/condominium/edit" className="block px-4 py-2 hover:bg-gray-100">Editar Datos</Link>
+                      {/* Add more condominium related links here if needed */}
+                    </div>
+                  )}
+                </div>
+
                 {/* Proveedores */}
                 <div className="relative dropdown-container">
                   <button
@@ -226,6 +242,7 @@ export default function Header() {
                   {activeDropdown === 'admin' && (
                     <div className="absolute right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg z-20">
                       <Link href="/condominium" className="block px-4 py-2 hover:bg-gray-100">Condominios</Link>
+                      <Link href="/admin/condominium/edit" className="block px-4 py-2 hover:bg-gray-100">Editar Mi Condominio</Link>
                       <Link href="/users" className="block px-4 py-2 hover:bg-gray-100">Usuarios</Link>
                       <Link href="/configuration" className="block px-4 py-2 hover:bg-gray-100">Configuración</Link>
                     </div>
@@ -388,6 +405,14 @@ export default function Header() {
               <Link href="/expenses" className="block px-6 py-2 hover:bg-gray-100 text-red-600">Gastos</Link>
               <Link href="/reserveFunds" className="block px-6 py-2 hover:bg-gray-100 text-blue-600">Fondos de Reserva</Link>
               <Link href="/reserveFunds/create" className="block px-6 py-2 hover:bg-gray-100">Crear Fondo</Link>
+
+              {/* Menú móvil para Condominio (Admin) */}
+              {userRole === 'admin' && (
+                <>
+                  <div className="px-4 py-2 text-gray-500 font-semibold mt-2">Condominio</div>
+                  <Link href="/admin/condominium/edit" className="block px-6 py-2 hover:bg-gray-100">Editar Datos</Link>
+                </>
+              )}
             </>
           )}
 
@@ -396,6 +421,7 @@ export default function Header() {
             <>
               <div className="px-4 py-2 text-gray-500 font-semibold">Administración</div>
               <Link href="/condominium" className="block px-6 py-2 hover:bg-gray-100">Condominios</Link>
+              <Link href="/admin/condominium/edit" className="block px-6 py-2 hover:bg-gray-100">Editar Mi Condominio</Link>
               <Link href="/users" className="block px-6 py-2 hover:bg-gray-100">Usuarios</Link>
               <Link href="/configuration" className="block px-6 py-2 hover:bg-gray-100">Configuración</Link>
 

@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 interface User {
   id: number;
@@ -387,9 +388,24 @@ export default function ListOwners() {
       <div className="min-h-screen bg-gray-100">
         <Header />
         <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto mb-4"></div>
-            <p className="text-gray-600">Cargando propietarios...</p>
+          <div className="text-center p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="text-xl font-semibold text-gray-700">Cargando propietarios...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-6 rounded shadow">
+            <p className="font-bold">Error al cargar propietarios</p>
+            <p>{error}</p>
+            <Button onClick={() => window.location.reload()} className="mt-4">Reintentar</Button>
           </div>
         </div>
       </div>
@@ -403,274 +419,240 @@ export default function ListOwners() {
         <div className="bg-white shadow-md rounded-lg p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Lista de Propietarios</h1>
-              <div className="text-gray-500 text-sm">
-                Total: <span className="font-medium">{totalOwners}</span> propietarios
-              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Lista de Propietarios</h1>
+              <p className="text-sm text-gray-500">Total: {filteredOwners.length} propietarios</p>
             </div>
-
-            <div className="mt-4 md:mt-0 flex flex-wrap gap-2">
+            <div className="flex items-center space-x-2 mt-4 md:mt-0">
+               <Button onClick={() => router.push('/owner/register')} className="bg-green-600 hover:bg-green-700 text-white">
+                 <FiPlus className="mr-2 h-4 w-4" /> Nuevo Propietario
+               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center">
-                    <FiEye className="mr-2" />
-                    Columnas
+                  <Button variant="outline">
+                    <FiColumns className="mr-2 h-4 w-4" /> Columnas <FiChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Columnas visibles</DropdownMenuLabel>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Mostrar Columnas</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {columns.map(column => (
+                  {columns.map((column) => (
                     <DropdownMenuCheckboxItem
                       key={column.id}
                       checked={column.visible}
                       onCheckedChange={() => toggleColumnVisibility(column.id)}
+                      disabled={column.id === 'actions'}
                     >
                       {column.label}
                     </DropdownMenuCheckboxItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {isAdmin && (
-                <Link
-                  href="/owner/register"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <FiPlus className="mr-2" />
-                  Registrar Propietario
-                </Link>
-              )}
             </div>
           </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 rounded-md p-4 mb-6">
-              {error}
-            </div>
-          )}
-
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Buscar por nombre, email o documento..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
+          
+          {/* Check if owners array is empty */}
+          {!loading && !error && owners.length === 0 ? (
+            <div className="text-center py-10 border-t border-gray-200 mt-6">
+              <FiUser className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-lg font-medium text-gray-900">No hay propietarios registrados</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Actualmente no hay propietarios registrados para este condominio. ¡Empieza agregando uno!
+              </p>
+              <div className="mt-6">
+                <Button onClick={() => router.push('/owner/register')}>
+                  <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                  Registrar Nuevo Propietario
+                </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={rowsPerPage}
-                  onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value={5}>5 por página</option>
-                  <option value={10}>10 por página</option>
-                  <option value={20}>20 por página</option>
-                  <option value={50}>50 por página</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Vista:</span>
-              <div className="flex bg-gray-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                    viewMode === 'table'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <FiList className="mr-1" />
-                  <span>Tabla</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('kanban')}
-                  className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                    viewMode === 'kanban'
-                      ? 'bg-white shadow-sm text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <FiLayout className="mr-1" />
-                  <span>Tarjetas</span>
-                </button>
-              </div>
-            </div>
-
-            {viewMode === 'table' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <FiColumns />
-                    Columnas
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Columnas visibles</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {columns.map(column => (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      checked={column.visible}
-                      onCheckedChange={() => toggleColumnVisibility(column.id)}
-                    >
-                      {column.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-
-          {/* Render view based on selected mode */}
-          {viewMode === 'table' ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {columns.map(column => column.visible && (
-                      <th
-                        key={column.id}
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => column.sortable && handleSort(column.id)}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>{column.label}</span>
-                          {column.sortable && sortConfig.key === column.id && (
-                            <span>
-                              {sortConfig.direction === 'asc' ? (
-                                <FiChevronUp className="inline" />
-                              ) : sortConfig.direction === 'desc' ? (
-                                <FiChevronDown className="inline" />
-                              ) : null}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentOwners.map((owner) => (
-                    <tr key={owner.id} className="hover:bg-gray-50">
-                      {columns.find(col => col.id === 'name')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {owner.fullName || owner.name || owner.user?.name || 'N/A'}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'email')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {owner.email || owner.user?.email || 'N/A'}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'phone')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {owner.phone || 'N/A'}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'documentType')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {owner.documentType || 'N/A'}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'documentNumber')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {owner.documentNumber || 'N/A'}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'status')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            owner.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {owner.status === 'active' ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'properties')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {owner.properties?.length || 0} propiedades
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'credit')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            ${(Number(owner.user?.credit_amount || 0)).toFixed(2)}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'actions')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleEdit(owner.id)}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
-                          >
-                            <FiEdit2 className="inline-block" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(owner.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <FiTrash2 className="inline-block" />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           ) : (
-            <KanbanBoard />
-          )}
+            <> 
+              {/* Search and Filters */}
+              <div className="mb-6 pt-6 border-t border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <Input
+                      type="text"
+                      placeholder="Buscar por nombre, email, teléfono, documento..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span className="text-sm text-gray-600">Vista:</span>
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                      <button
+                        onClick={() => setViewMode('table')}
+                        className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                          viewMode === 'table'
+                            ? 'bg-white shadow-sm text-blue-600'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <FiList className="mr-1 h-4 w-4" /> Tabla
+                      </button>
+                      <button
+                        onClick={() => setViewMode('kanban')}
+                        className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                          viewMode === 'kanban'
+                            ? 'bg-white shadow-sm text-blue-600'
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <FiLayout className="mr-1 h-4 w-4" /> Kanban
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-          <div className="mt-4 flex items-center justify-between">
-            <div className="flex items-center">
-              <span className="text-sm text-gray-700">
-                Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, totalOwners)} de {totalOwners} resultados
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
-              >
-                Anterior
-              </button>
-              <span className="px-3 py-1">
-                Página {currentPage} de {totalPages}
-              </span>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
+              {/* Content based on view mode */}
+              {viewMode === 'table' ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {columns.map(column => column.visible && (
+                          <th
+                            key={column.id}
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => column.sortable && handleSort(column.id)}
+                          >
+                            <div className="flex items-center space-x-1">
+                              <span>{column.label}</span>
+                              {column.sortable && sortConfig.key === column.id && (
+                                <span>
+                                  {sortConfig.direction === 'asc' ? (
+                                    <FiChevronUp className="inline" />
+                                  ) : sortConfig.direction === 'desc' ? (
+                                    <FiChevronDown className="inline" />
+                                  ) : null}
+                                </span>
+                              )}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentOwners.map((owner) => (
+                        <tr key={owner.id} className="hover:bg-gray-50">
+                          {columns.find(col => col.id === 'name')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {owner.fullName || owner.name || owner.user?.name || 'N/A'}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'email')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {owner.email || owner.user?.email || 'N/A'}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'phone')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {owner.phone || 'N/A'}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'documentType')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {owner.documentType || 'N/A'}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'documentNumber')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {owner.documentNumber || 'N/A'}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'status')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                owner.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {owner.status === 'active' ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'properties')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {owner.properties?.length || 0} propiedades
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'credit')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                ${(Number(owner.user?.credit_amount || 0)).toFixed(2)}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'actions')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={() => handleEdit(owner.id)}
+                                className="text-blue-600 hover:text-blue-900 mr-4"
+                              >
+                                <FiEdit2 className="inline-block" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(owner.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <FiTrash2 className="inline-block" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <KanbanBoard />
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <div className="text-sm text-gray-700">
+                    Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, filteredOwners.length)} de {filteredOwners.length} propietarios
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Anterior
+                    </Button>
+                    <span className="px-2 text-sm">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

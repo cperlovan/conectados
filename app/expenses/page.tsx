@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useToken } from "../hook/useToken";
 import Header from "../components/Header";
 import Link from "next/link";
-import { FiFilter, FiCalendar, FiDollarSign, FiRefreshCw } from "react-icons/fi";
+import { FiFilter, FiCalendar, FiDollarSign, FiRefreshCw, FiPlus } from "react-icons/fi";
+import { Button } from "@/components/ui/button";
 
 interface Expense {
   id: number;
@@ -251,50 +252,61 @@ export default function ExpensesPage() {
                     filters.showAll ? 'bg-gray-100 cursor-not-allowed' : ''
                   }`}
                 >
-                  <option value="2023">2023</option>
-                  <option value="2024">2024</option>
-                  <option value="2025">2025</option>
+                  {[...Array(5)].map((_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return <option key={year} value={year}>{year}</option>;
+                  })}
                 </select>
               </div>
               
-              <div className="flex items-center">
-                <div className="flex items-center mt-5">
-                  <input
-                    id="showAll"
-                    name="showAll"
-                    type="checkbox"
-                    checked={filters.showAll}
-                    onChange={handleFilterChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="showAll" className="ml-2 block text-sm text-gray-700">
-                    Mostrar todos los gastos
-                  </label>
-                </div>
-                
-                <button
-                  onClick={fetchExpenses}
-                  className="ml-4 bg-gray-200 text-gray-700 px-3 py-1 rounded flex items-center hover:bg-gray-300 transition duration-200"
-                  title="Actualizar"
-                >
-                  <FiRefreshCw className="mr-1" /> Actualizar
-                </button>
+              <div className="flex items-center pt-4 md:pt-6">
+                <input
+                  type="checkbox"
+                  id="showAll"
+                  name="showAll"
+                  checked={filters.showAll}
+                  onChange={handleFilterChange}
+                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="showAll" className="text-gray-700 text-sm font-bold">
+                  Mostrar todos los gastos
+                </label>
               </div>
             </div>
           </div>
 
           {loading ? (
-            <div className="text-center py-4">Cargando gastos...</div>
+            <div className="text-center py-10">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-3 text-gray-600">Cargando gastos...</p>
+            </div>
           ) : error ? (
-            <div className="text-center text-red-600 py-4">{error}</div>
+            <div className="text-center py-10 text-red-600">
+              <p>{error}</p>
+              <Button onClick={fetchExpenses} variant="outline" className="mt-4">Reintentar</Button>
+            </div>
           ) : expenses.length === 0 ? (
-            <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-lg text-gray-600 mb-2">No hay gastos registrados{!filters.showAll ? ` para ${getNombreMes(filters.month)} de ${filters.year}` : ''}.</p>
-              <p className="text-sm text-gray-500">Intente con otro filtro o registre un nuevo gasto.</p>
+            <div className="text-center py-20 border-t border-gray-200 mt-6">
+              <FiDollarSign className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="mt-2 text-xl font-semibold text-gray-900">No hay gastos registrados</h3>
+              <p className="mt-2 text-base text-gray-500">
+                {filters.showAll ? 
+                  'Aún no se ha registrado ningún gasto común para este condominio.' : 
+                  `No se encontraron gastos para el período seleccionado (${getNombreMes(filters.month)} ${filters.year}).`
+                }
+              </p>
+              {(userInfo?.role === 'admin' || userInfo?.role === 'superadmin') && (
+                <div className="mt-8">
+                  <Button onClick={() => router.push('/expenses/create')}>
+                    <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                    Registrar Primer Gasto
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white">
+            <div className="overflow-x-auto mt-6">
+              <table className="min-w-full divide-y divide-gray-200 shadow-sm border border-gray-200">
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="py-3 px-4 text-left">Descripción</th>

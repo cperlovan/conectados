@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToken } from "../hook/useToken";
 import Header from "../components/Header";
 import Link from 'next/link';
-import { FiEdit2, FiTrash2, FiPlus, FiColumns, FiList, FiLayout, FiChevronUp, FiChevronDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiColumns, FiList, FiLayout, FiChevronUp, FiChevronDown, FiTruck } from 'react-icons/fi';
 import { Button } from "@/components/ui/button";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import {
@@ -16,6 +16,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 
 interface ContactInfo {
   name: string;
@@ -399,234 +400,222 @@ export default function SupplierPage() {
         <div className="bg-white shadow-md rounded-lg p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Lista de Proveedores</h1>
-              <div className="text-gray-500 text-sm">
-                Total: <span className="font-medium">{totalSuppliers}</span> proveedores
-              </div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">Lista de Proveedores</h1>
+              <p className="text-sm text-gray-500">Total: {filteredSuppliers.length} proveedores</p>
             </div>
-
-            <div className="mt-4 md:mt-0 flex items-center space-x-2">
-              {isAdmin && (
-                <Link
-                  href="/supplier/admin-register"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  <FiPlus className="mr-2" />
-                  Registrar Proveedor
-                </Link>
-              )}
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-2">
-                    <FiColumns className="mr-2" />
-                    Columnas
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuLabel>Mostrar columnas</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {columns.map(column => (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      checked={column.visible}
-                      onCheckedChange={() => toggleColumnVisibility(column.id)}
-                    >
-                      {column.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            {isAdmin && (
+              <Button onClick={() => router.push('/supplier/register')} className="bg-green-600 hover:bg-green-700 text-white">
+                <FiPlus className="mr-2 h-4 w-4" /> Nuevo Proveedor
+              </Button>
+            )}
           </div>
 
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Buscar por nombre, email, teléfono o tipo..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
+          {/* Empty State Check */}
+          {!loading && !error && suppliers.length === 0 ? (
+            <div className="text-center py-20 border-t border-gray-200 mt-6">
+              <FiTruck className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="mt-2 text-xl font-semibold text-gray-900">No hay proveedores registrados</h3>
+              <p className="mt-2 text-base text-gray-500">
+                Actualmente no hay proveedores registrados para este condominio. ¡Empieza agregando uno!
+              </p>
+              <div className="mt-8">
+                <Button onClick={() => router.push('/supplier/register')}>
+                  <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                  Registrar Nuevo Proveedor
+                </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={rowsPerPage}
-                  onChange={(e) => setRowsPerPage(Number(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value={5}>5 por página</option>
-                  <option value={10}>10 por página</option>
-                  <option value={20}>20 por página</option>
-                  <option value={50}>50 por página</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 mb-4">
-            <span className="text-sm text-gray-600">Vista:</span>
-            <div className="flex bg-gray-100 p-1 rounded-lg">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                  viewMode === 'table'
-                    ? 'bg-white shadow-sm text-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <FiList className="mr-1" />
-                <span>Tabla</span>
-              </button>
-              <button
-                onClick={() => setViewMode('kanban')}
-                className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
-                  viewMode === 'kanban'
-                    ? 'bg-white shadow-sm text-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <FiLayout className="mr-1" />
-                <span>Tarjetas</span>
-              </button>
-            </div>
-          </div>
-
-          {viewMode === 'table' ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {columns.map(column => column.visible && (
-                      <th
-                        key={column.id}
-                        scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                        onClick={() => column.sortable && handleSort(column.id)}
-                      >
-                        <div className="flex items-center space-x-1">
-                          <span>{column.label}</span>
-                          {column.sortable && sortConfig.key === column.id && (
-                            <span>
-                              {sortConfig.direction === 'asc' ? (
-                                <FiChevronUp className="inline" />
-                              ) : sortConfig.direction === 'desc' ? (
-                                <FiChevronDown className="inline" />
-                              ) : null}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentSuppliers.map((supplier) => (
-                    <tr key={supplier.id} className="hover:bg-gray-50">
-                      {columns.find(col => col.id === 'name')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {supplier.name}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'type')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {supplier.type === 'individual' ? 'Individual' : 'Empresa'}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'contact')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {supplier.contact?.name || supplier.User?.name || ''} {supplier.contact?.lastname || supplier.User?.lastname || ''}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'phone')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {supplier.contact?.phone || supplier.contactInfo?.phone || ''}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'email')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {supplier.contact?.email || supplier.contactInfo?.email || supplier.User?.email || ''}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'activities')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {supplier.economicActivities?.map(activity => activity.name).join(', ')}
-                          </div>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'status')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            supplier.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {supplier.status === 'active' ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </td>
-                      )}
-                      {columns.find(col => col.id === 'actions')?.visible && (
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleEdit(supplier.id)}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
-                          >
-                            <FiEdit2 className="inline-block" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(supplier.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <FiTrash2 className="inline-block" />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           ) : (
-            <KanbanBoard />
-          )}
+            <>
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre, email, teléfono o tipo..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={rowsPerPage}
+                      onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                      className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value={5}>5 por página</option>
+                      <option value={10}>10 por página</option>
+                      <option value={20}>20 por página</option>
+                      <option value={50}>50 por página</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
 
-          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center">
-              <span className="text-sm text-gray-700">
-                Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, totalSuppliers)} de {totalSuppliers} resultados
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
-              >
-                Anterior
-              </button>
-              <span className="px-3 py-1">
-                Página {currentPage} de {totalPages}
-              </span>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
+              <div className="flex items-center space-x-2 mb-4">
+                <span className="text-sm text-gray-600">Vista:</span>
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                      viewMode === 'table'
+                        ? 'bg-white shadow-sm text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <FiList className="mr-1" />
+                    <span>Tabla</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('kanban')}
+                    className={`px-3 py-1 rounded-md flex items-center space-x-1 ${
+                      viewMode === 'kanban'
+                        ? 'bg-white shadow-sm text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <FiLayout className="mr-1" />
+                    <span>Tarjetas</span>
+                  </button>
+                </div>
+              </div>
+
+              {viewMode === 'table' ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {columns.map(column => column.visible && (
+                          <th
+                            key={column.id}
+                            scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => column.sortable && handleSort(column.id)}
+                          >
+                            <div className="flex items-center space-x-1">
+                              <span>{column.label}</span>
+                              {column.sortable && sortConfig.key === column.id && (
+                                <span>
+                                  {sortConfig.direction === 'asc' ? (
+                                    <FiChevronUp className="inline" />
+                                  ) : sortConfig.direction === 'desc' ? (
+                                    <FiChevronDown className="inline" />
+                                  ) : null}
+                                </span>
+                              )}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentSuppliers.map((supplier) => (
+                        <tr key={supplier.id} className="hover:bg-gray-50">
+                          {columns.find(col => col.id === 'name')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {supplier.name}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'type')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {supplier.type === 'individual' ? 'Individual' : 'Empresa'}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'contact')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {supplier.contact?.name || supplier.User?.name || ''} {supplier.contact?.lastname || supplier.User?.lastname || ''}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'phone')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {supplier.contact?.phone || supplier.contactInfo?.phone || ''}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'email')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {supplier.contact?.email || supplier.contactInfo?.email || supplier.User?.email || ''}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'activities')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">
+                                {supplier.economicActivities?.map(activity => activity.name).join(', ')}
+                              </div>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'status')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                supplier.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {supplier.status === 'active' ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </td>
+                          )}
+                          {columns.find(col => col.id === 'actions')?.visible && (
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={() => handleEdit(supplier.id)}
+                                className="text-blue-600 hover:text-blue-900 mr-4"
+                              >
+                                <FiEdit2 className="inline-block" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(supplier.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <FiTrash2 className="inline-block" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <KanbanBoard />
+              )}
+
+              <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-700">
+                    Mostrando {(currentPage - 1) * rowsPerPage + 1} a {Math.min(currentPage * rowsPerPage, totalSuppliers)} de {totalSuppliers} resultados
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Anterior
+                  </button>
+                  <span className="px-3 py-1">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border rounded-md hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

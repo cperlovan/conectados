@@ -1,19 +1,54 @@
 "use client";
 
+import { ApiResponse, ErrorResponse, SuccessResponse, PaginatedResponse } from '../types/common'
+
 // URL base para las peticiones API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3040/api';
 
 interface FetchOptions {
   token?: string;
   method?: string;
-  body?: any;
+  body?: unknown;
   headers?: Record<string, string>;
+}
+
+export interface Property {
+  id: number;
+  name: string;
+  address: string;
+  ownerId: number;
+  condominiumId: number;
+  number?: string | null;
+  block?: string | null;
+  floor?: string | null;
+  type?: string;
+  status?: string;
+  owner?: {
+    id: number;
+    name: string;
+  };
+}
+
+export interface Receipt {
+  id: number;
+  month?: string;
+  year?: number;
+  amount: number;
+  dueDate: string;
+  property?: Property;
+}
+
+export interface Payment {
+  id: number;
+  receiptId?: number;
+  status: string;
+  receipt?: Receipt;
 }
 
 /**
  * Función para realizar peticiones a la API con manejo de errores
  */
-export async function fetchAPI(endpoint: string, options: FetchOptions = {}): Promise<any> {
+export async function fetchAPI<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
   const { token, method = 'GET', body, headers = {} } = options;
   
   try {
@@ -39,27 +74,27 @@ export async function fetchAPI(endpoint: string, options: FetchOptions = {}): Pr
     });
     
     // Procesamos la respuesta una sola vez
-    let data;
+    let data: T;
     const contentType = response.headers.get('content-type');
     
     if (contentType && contentType.includes('application/json')) {
       try {
-        data = await response.json();
-        console.log(`Datos de respuesta de ${endpoint}:`, data);
+        const jsonResponse = await response.json();
+        data = jsonResponse.data || jsonResponse;
       } catch (error) {
         console.error('Error al parsear JSON:', error);
         const responseText = await response.text();
         console.error('Texto de respuesta crudo:', responseText);
-        data = { error: 'Error al procesar la respuesta del servidor' };
+        throw new Error('Error al procesar la respuesta del servidor');
       }
     } else {
       const responseText = await response.text();
       console.log(`Texto de respuesta de ${endpoint}:`, responseText);
-      data = { message: responseText };
+      data = { message: responseText } as T;
     }
     
     if (!response.ok) {
-      const errorMessage = data.message || `Error en fetchAPI ${endpoint}: ${response.statusText}`;
+      const errorMessage = (data as any).message || `Error en fetchAPI ${endpoint}: ${response.statusText}`;
       console.error(`Error ${response.status} en ${endpoint}:`, errorMessage);
       throw new Error(errorMessage);
     }
@@ -98,18 +133,18 @@ export async function getReceiptsByUserId(userId: number, token: string) {
  * Esta función primero obtiene los recibos del usuario y luego
  * obtiene los pagos asociados a esos recibos.
  */
-export async function getPaymentsByUserId(userId: number, token: string) {
+export async function getPaymentsByUserId(userId: number, token: string): Promise<Payment[]> {
   try {
     console.log(`Iniciando obtención de pagos para el usuario: ${userId}`);
     
     // Primero obtenemos los recibos del usuario, agregando un timestamp para evitar caché
     const timestamp = new Date().getTime();
-    const receipts = await fetchAPI(`/receipts/user/${userId}?_nocache=${timestamp}`, { token });
+    const receipts = await fetchAPI<Receipt[]>(`/receipts/user/${userId}?_nocache=${timestamp}`, { token });
     
     console.log(`Recibos obtenidos para el usuario ${userId}:`, receipts);
     
     // Si no hay recibos, retornamos un array vacío
-    if (!receipts || receipts.length === 0) {
+    if (!receipts || !Array.isArray(receipts) || receipts.length === 0) {
       console.log(`No se encontraron recibos para el usuario ${userId}`);
       return [];
     }
@@ -121,15 +156,8 @@ export async function getPaymentsByUserId(userId: number, token: string) {
       .filter((receipt: Receipt) => receipt.id) // Aseguramos que el recibo tenga un ID
       .map((receipt: Receipt) => {
         console.log(`Obteniendo pagos para el recibo ${receipt.id}`);
-        return fetchAPI(`/payments/receipt/${receipt.id}?_nocache=${timestamp}`, { token })
-          .then(payments => {
-            console.log(`Pagos obtenidos para el recibo ${receipt.id}:`, payments);
-            return payments;
-          })
-          .catch(error => {
-            console.error(`Error al obtener los pagos del recibo ${receipt.id}:`, error);
-            return []; // Si hay un error, retornamos un array vacío
-          });
+        return fetchAPI<Payment[]>(`/payments/receipt/${receipt.id}?_nocache=${timestamp}`, { token })
+          .catch(() => [])
       });
     
     // Esperamos a que se resuelvan todas las promesas
@@ -138,7 +166,7 @@ export async function getPaymentsByUserId(userId: number, token: string) {
     console.log('Arrays de pagos obtenidos:', paymentsArrays);
     
     // Aplanamos el array y procesamos cada pago
-    const allPayments = paymentsArrays.flat().map(payment => {
+    const allPayments = paymentsArrays.flat().map((payment: Payment) => {
       if (!payment) {
         console.warn('Se encontró un pago nulo o undefined');
         return null;
@@ -150,9 +178,27 @@ export async function getPaymentsByUserId(userId: number, token: string) {
       // Agregar información del recibo si no la tiene
       if (!processedPayment.receipt) {
         console.log(`Agregando información de recibo al pago ${processedPayment.id}`);
-        const receipt = receipts.find((r: Receipt) => r.id === processedPayment.receiptId);
+        const receipt = receipts.find(r => r.id === processedPayment.receiptId);
         if (receipt) {
-          processedPayment.receipt = receipt;
+          processedPayment.receipt = {
+            id: receipt.id,
+            month: receipt.month || null,
+            year: receipt.year || null,
+            amount: receipt.amount || null,
+            dueDate: receipt.dueDate || null,
+            property: receipt.property || {
+              id: 0,
+              name: '',
+              address: '',
+              ownerId: 0,
+              condominiumId: 0,
+              number: null,
+              block: null,
+              floor: null,
+              type: '',
+              status: ''
+            }
+          };
         }
       }
       
@@ -166,7 +212,7 @@ export async function getPaymentsByUserId(userId: number, token: string) {
       }
       
       return processedPayment;
-    }).filter(Boolean); // Filtramos posibles valores nulos
+    }).filter((payment): payment is Payment => payment !== null);
     
     console.log('Total de pagos obtenidos para el usuario:', userId, allPayments.length);
     console.log('Detalle de pagos:', allPayments);
@@ -277,7 +323,7 @@ export async function getPaymentById(paymentId: number, token: string, condomini
     try {
       // Añadimos un timestamp para evitar la caché
       const timestamp = new Date().getTime();
-      payment = await fetchAPI(`/payments/${paymentId}?_nocache=${timestamp}`, { token });
+      payment = await fetchAPI<Payment>(`/payments/${paymentId}?_nocache=${timestamp}`, { token });
       
       if (payment && payment.id) {
         console.log(`Pago obtenido directamente: ${payment.id}`);
@@ -302,7 +348,7 @@ export async function getPaymentById(paymentId: number, token: string, condomini
         try {
           // Añadimos un timestamp para evitar la caché
           const timestamp = new Date().getTime();
-          const payments = await fetchAPI(`/payments/receipt/${receipt.id}?_nocache=${timestamp}`, { token });
+          const payments = await fetchAPI<Payment[]>(`/payments/receipt/${receipt.id}?_nocache=${timestamp}`, { token });
           
           if (Array.isArray(payments)) {
             payment = payments.find(p => p.id === paymentId);
@@ -417,7 +463,7 @@ export async function updatePaymentStatus(paymentId: number, status: string, tok
     
     try {
       // Intentamos actualizar en el backend
-      const updatedPayment = await fetchAPI(`/payments/${paymentId}`, {
+      const updatedPayment = await fetchAPI<Payment>(`/payments/${paymentId}`, {
         method: 'PUT',
         body: { status },
         token
@@ -514,7 +560,7 @@ export async function getAllPayments(token: string, condominiumId?: number) {
     const paymentsPromises = receipts
       .filter((receipt: Receipt) => receipt.id)
       .map((receipt: Receipt) => 
-        fetchAPI(`/payments/receipt/${receipt.id}`, { token })
+        fetchAPI<Payment[]>(`/payments/receipt/${receipt.id}`, { token })
           .catch(error => {
             console.error(`Error al obtener los pagos del recibo ${receipt.id}:`, error);
             return []; // If there's an error, return an empty array
@@ -569,24 +615,6 @@ export interface Owner {
   phoneNumber: string;
   emergencyContact: string;
   emergencyPhone: string;
-}
-
-export interface Property {
-  id: number;
-  name: string;
-  type: string;
-  address: string;
-  status: string; // "occupied" | "vacant" | "under_maintenance"
-  ownerId: number;
-  condominiumId: number;
-  number?: string;
-  block?: string;
-  aliquot?: number;
-  owner: {
-    id: number;
-    name: string;
-    email: string;
-  };
 }
 
 export interface Receipt {
@@ -650,4 +678,9 @@ export interface Payment {
       status?: string;
     };
   };
+}
+
+export interface PaymentResponse {
+  payments: Payment[]
+  receipts: Receipt[]
 } 
